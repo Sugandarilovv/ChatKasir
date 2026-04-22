@@ -1,7 +1,7 @@
 [project]
 name = "ai-model"
 version = "0.1.0"
-description = "Add your description here"
+description = "List dependencies for AI model"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
