@@ -1,0 +1,14 @@
+[project]
+name = "ai-model"
+version = "0.1.0"
+description = "List dependencies for AI model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "scikit-learn>=1.8.0",
+    "tensorflow>=2.21.0",
+]
