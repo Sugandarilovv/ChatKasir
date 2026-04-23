@@ -96,6 +96,103 @@ uv run tensorboard --logdir logs/
 
 ---
 
+## Arsitektur Model
+
+Model menggunakan pendekatan **Multi-Output dengan Shared Bidirectional LSTM Encoder** untuk mengekstrak tiga entitas sekaligus dari satu kalimat pesanan informal Bahasa Indonesia.
+
+```
+INPUT:
+Kalimat pesanan yang sudah diubah menjadi array angka.
+Contoh: "pesan nasi goreng 2 porsi 30rb" → [45, 17, 89, 302, 156, 78, 0, 0]
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│  EMBEDDING LAYER                                    │
+│  Ubah setiap angka (token) → vektor bermakna        │
+│  Kata yang mirip maknanya → vektor yang berdekatan  │
+│  Contoh: "goreng" dan "bakar" → posisi vektor dekat │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│  BIDIRECTIONAL LSTM                                 │
+│  Baca kalimat dari DUA arah sekaligus:              │
+│  → Kiri ke kanan: "pesan nasi goreng 2 porsi 30rb"  │
+│  ← Kanan ke kiri: "30rb porsi 2 goreng nasi pesan"  │
+│  Hasil: satu ringkasan pemahaman seluruh kalimat    │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│  DROPOUT (0.3)                                      │
+│  Matikan 30% neuron secara acak saat training       │
+│  Tujuan: agar model tidak "menghafal" data,         │
+│  melainkan benar-benar "memahami" polanya           │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│  SHARED DENSE (128 neuron)                          │
+│  Proses lanjutan dari ringkasan LSTM                │
+│  Hasilnya dibagikan ke KETIGA output di bawah       │
+│  (inilah yang disebut "shared" / bersama)           │
+└─────────────────────────────────────────────────────┘
+        │
+        │ ← satu representasi, terpecah ke tiga arah
+        │
+   ┌────┴──────────────┬──────────────────┐
+   ▼                   ▼                  ▼
+
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│   PRODUCT    │ │   QUANTITY   │ │    PRICE     │
+│              │ │              │ │              │
+│  Klasifikasi │ │   Regresi    │ │   Regresi    │
+│  (softmax)   │ │   (relu)     │ │   (relu)     │
+│              │ │              │ │              │
+│ Pilih 1 nama │ │ Prediksi     │ │ Prediksi     │
+│ produk dari  │ │ angka jumlah │ │ angka harga  │
+│ daftar yang  │ │ pesanan      │ │ dalam ribuan │
+│ dikenal      │ │              │ │ rupiah       │
+└──────────────┘ └──────────────┘ └──────────────┘
+       │                │                │
+       ▼                ▼                ▼
+
+OUTPUT:
+{
+  "product":  "nasi goreng",   ← nama produk
+  "quantity": 2,               ← jumlah pesanan
+  "price":    30000            ← harga dalam rupiah
+}
+```
+
+### Keputusan Desain
+
+| Komponen      | Pilihan               | Alasan                                                   |
+| ------------- | --------------------- | -------------------------------------------------------- |
+| Encoder       | Bidirectional LSTM    | Konteks dua arah penting untuk NER (Lample et al., 2016) |
+| Embedding     | Dilatih dari nol      | Kosakata domain ChatKasir sangat spesifik                |
+| Product head  | Softmax (klasifikasi) | Memilih dari daftar produk yang dikenal di dataset       |
+| Quantity head | ReLU (regresi)        | Angka kontinu, selalu positif                            |
+| Price head    | ReLU (regresi)        | Dinormalisasi ÷1000 saat training untuk stabilitas       |
+| Dropout       | 0.3                   | Mengurangi risiko overfitting pada dataset skala kecil   |
+
+Detail lengkap, kode, dan hasil verifikasi ada di
+`notebooks/01_model_architecture.ipynb`.
+
+---
+
+## Catatan untuk Anggota Tim Lain
+
+**DS-1 (Faradi):** Dataset final yang sudah dibersihkan diletakkan di
+folder `data/` pada root repo. Format yang diharapkan dan spesifikasi
+kolom dikonfirmasi bersama di Weekly Sync Minggu 1.
+
+**AI-2 (Denny):** File model final (`.keras` atau `SavedModel`)
+diupload ke Google Drive. Link download publik dicantumkan di README
+root repo. Script load model tersedia di `src/model.py`.
+
+---
+
 ## Catatan untuk Anggota Tim Lain
 
 - **DS-1 Data Engineer:** Dataset final yang sudah dibersihkan diletakkan di folder `data/` pada root repo. Format yang diharapkan dan spesifikasi kolom dikonfirmasi bersama di Weekly Sync Minggu 1.
