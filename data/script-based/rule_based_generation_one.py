@@ -19,8 +19,7 @@ Kolom output:
     product     : nama produk yang dipesan
     quantity    : jumlah pesanan (integer)
     price       : harga satuan (integer, dalam rupiah)
-    total_price : total harga = quantity * price
-"""
+    """
 
 import pandas as pd
 import numpy as np
@@ -28,6 +27,7 @@ import random
 import re
 import os
 from datetime import datetime
+import csv
 
 # ──────────────────────────────────────────────
 # KONFIGURASI — sesuaikan nama file kamu di sini
@@ -207,7 +207,6 @@ def generate_order(food_list: list, slang_dict: dict) -> dict:
         "product":     product,
         "quantity":    qty_int,
         "price":       price_int,
-        "total_price": total_int,
     }
 
 
@@ -232,7 +231,13 @@ def main():
     print(f"[INFO] Duplikat teks ditemukan: {n_dup} baris (wajar jika kecil)")
 
     # Simpan ke CSV
-    df_out.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
+    df_out.to_csv(
+        OUTPUT_FILE,
+        index=False,
+        sep=";",                    # 🔥 ganti delimiter
+        encoding="utf-8-sig",
+        quoting=csv.QUOTE_ALL      # 🔥 biar aman tanda "
+    )
     df_out.to_excel("synthetic_orders_one.xlsx", index=False)
     print(f"\n[OK] File disimpan: {OUTPUT_FILE}")
     print(f"[OK] Total baris  : {len(df_out)}")
