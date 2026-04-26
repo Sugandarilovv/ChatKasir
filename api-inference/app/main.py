@@ -1,30 +1,40 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
-from app.routers import predict, health
+from app.routers import health, predict
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup & shutdown events."""
+    """Startup: muat model sekali. Shutdown: lepas dari memory."""
     from app.services.model_loader import ModelLoader
-    ModelLoader.get_instance()          # warm-up: load model once at startup
+    from app.services.preprocessing import load_slang_dict
+
+    # Warm-up: muat model + kamus slang saat startup
+    ModelLoader.get_instance()
+    load_slang_dict()   # pre-load ke cache agar request pertama tidak lambat
     yield
-    # (optional) cleanup on shutdown
     ModelLoader.reset()
 
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="AI2 Inference API – powered by TensorFlow / Keras",
+    description=(
+        "AI-2 Inference API untuk ChatKasir.\n\n"
+        "Menerima raw chat WhatsApp dari FS-2 (Reihan), menjalankan preprocessing, "
+        "inferensi model AI-1 (Rifan), dan postprocessing, lalu mengembalikan "
+        "hasil transaksi lengkap (product, quantity, price_satuan, total, confidence) "
+        "ke backend untuk ditampilkan di dashboard FS-1 (Alfan)."
+    ),
     lifespan=lifespan,
 )
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
+# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
