@@ -1,8 +1,9 @@
 # API Contract — ChatKasir
 
-**Version**: 1.0.0
-**Tanggal**: 23 April 2026
+**Version**: 1.1.0
+**Tanggal**: 26 April 2026
 **Disusun oleh**: FS-2 (Reihan) & AI-2 (Denny)
+**Changelog**: v1.1.0 — Refactor skema database (issue #24 by Rifan): rename `price` → `price_satuan`, tambah field `total`, `confidence`, `is_manual` di transactions; update tabel users pakai Supabase Auth.
 
 ---
 
@@ -149,7 +150,10 @@ Response `200`:
       "id": "uuid-transaksi",
       "product_name": "nasi goreng",
       "quantity": 2,
-      "price": 15000,
+      "price_satuan": 15000,
+      "total": 30000,
+      "confidence": "HIGH",
+      "is_manual": false,
       "transaction_date": "2026-04-23"
     }
   ]
@@ -230,8 +234,18 @@ Response sukses `200`:
 {
   "status": "success",
   "predictions": [
-    { "product_name": "nasi goreng", "quantity": 2, "price": 15000 },
-    { "product_name": "es teh", "quantity": 3, "price": 5000 }
+    {
+      "product_name": "nasi goreng",
+      "quantity": 2,
+      "price_satuan": 15000,
+      "confidence": "HIGH"
+    },
+    {
+      "product_name": "es teh",
+      "quantity": 3,
+      "price_satuan": 5000,
+      "confidence": "MEDIUM"
+    }
   ]
 }
 ```
@@ -263,8 +277,10 @@ Response gagal `200`:
 
 ## D. Catatan Penting untuk Integrasi
 
-**FS-2 (Reihan):** Sebelum memanggil `/predict` milik **AI-2 (Denny)**, selalu panggil `/health` dulu untuk memastikan model sudah loaded. Simpan `AI_API_URL` dan `AI_API_KEY` di file `.env` — jangan pernah hardcode di kode.
+**FS-2 (Reihan):** Sebelum memanggil `/predict`, harus manggil `/health` dulu untuk memastikan model sudah loaded.
 
-**AI-2 (Denny):** Endpoint `/predict` perlu diubah agar menerima `{ "text": "..." }` bukan array of numbers. Output harus berupa array of objects dengan field `product_name`, `quantity`, dan `price`.
+**AI-2 (Denny):** Endpoint `/predict` perlu diubah agar menerima `{ "text": "..." }` bukan array of numbers. Output harus berupa array of objects dengan field `product_name`, `quantity`, `price_satuan`, dan `confidence` (`"HIGH"`, `"MEDIUM"`, `"LOW"`).
 
-**Disepakati bersama:** Jika AI gagal mengekstrak (predictions kosong), backend akan menyimpan `chat_extractions` dengan status `"failed"` dan tidak membuat record di tabel `transactions`.
+**Disepakati bersama:** Jika AI gagal mengekstrak (predictions kosong), backend akan menyimpan `chat_extractions` dengan status `"failed"` dan tidak membuat record di tabel `transactions`. Nilai valid untuk kolom `status` di `chat_extractions` adalah: `"pending"`, `"processed"`, `"failed"`.
+
+**Supabase Auth:** Register dan login menggunakan Supabase Auth bawaan — token JWT dihandle otomatis oleh Supabase. Frontend (FS-1) menyimpan token dan mengirimkannya di header setiap request ke backend.
