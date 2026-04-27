@@ -1,250 +1,204 @@
-"""
-Rule-Based Generation Script - ChatKasir
-DS-1: Muhammad Faradi Eka Damara
-
-Deskripsi:
-    Script ini menghasilkan data sintetis variasi teks pesanan pelanggan UMKM
-    berbahasa Indonesia yang informal (gaul, typo, singkatan), beserta label
-    entitas: nama produk, jumlah, dan harga.
-
-Input:
-    - FILE_FOOD    : path ke dataset nama makanan Indonesia (kolom nama makanan)
-    - FILE_SLANG   : path ke dataset kamus slang Indonesia (kolom slang & baku)
-
-Output:
-    - synthetic_orders.csv : dataset hasil generate (~1000 baris)
-
-Kolom output:
-    text        : teks pesanan mentah (informal)
-    product     : nama produk yang dipesan
-    quantity    : jumlah pesanan (integer)
-    price       : harga satuan (integer, dalam rupiah)
-    """
-
 import pandas as pd
-import numpy as np
 import random
-import re
-import os
-from datetime import datetime
-import csv
 
-# ──────────────────────────────────────────────
-# KONFIGURASI — sesuaikan nama file kamu di sini
-# ──────────────────────────────────────────────
-FILE_FOOD  = "../final/food_utama.csv"      # <-- ganti dengan nama file dataset food kamu
-FILE_SLANG = "../final/slang_utama.csv"      # <-- ganti dengan nama file dataset slang kamu
-FOOD_COL   = "name"                     # <-- ganti dengan nama kolom nama makanan
-SLANG_COL  = "slang"                    # <-- ganti dengan nama kolom kata slang
-FORMAL_COL = "formal"                   # <-- ganti dengan nama kolom kata formal/baku
+# ============================================================
+# CHATKASIR - Data Engineering
+# Author  : Muhammad Faradi Eka Damara (DS-1)
+# ============================================================
 
-OUTPUT_FILE    = "synthetic_orders_one.csv"
-TARGET_ROWS    = 1000
-RANDOM_SEED    = 42
+SAPAAN  = ['bang', 'kak', 'kk', 'bg', 'mas', 'mbak', 'min', 'bu', 'pak', '']
+PENUTUP = ['ya', 'dong', 'kak', 'ya kak', 'dong kak', 'nih', '']
 
-random.seed(RANDOM_SEED)
-np.random.seed(RANDOM_SEED)
-
-# ──────────────────────────────────────────────
-# 1. LOAD DATASET
-# ──────────────────────────────────────────────
-def load_datasets():
-    print("[INFO] Memuat dataset...")
-
-    if not os.path.exists(FILE_FOOD):
-        raise FileNotFoundError(f"File tidak ditemukan: {FILE_FOOD}")
-    if not os.path.exists(FILE_SLANG):
-        raise FileNotFoundError(f"File tidak ditemukan: {FILE_SLANG}")
-
-    df_food  = pd.read_csv(FILE_FOOD)
-    df_slang = pd.read_csv(FILE_SLANG)
-
-    # Ambil daftar nama makanan, hilangkan null & duplikat
-    food_list = (
-        df_food[FOOD_COL]
-        .dropna()
-        .drop_duplicates()
-        .str.strip()
-        .str.lower()
-        .tolist()
-    )
-
-    # Buat kamus slang → formal
-    slang_dict = dict(
-        zip(
-            df_slang[SLANG_COL].str.strip().str.lower(),
-            df_slang[FORMAL_COL].str.strip().str.lower()
-        )
-    )
-
-    print(f"[INFO] Jumlah nama makanan: {len(food_list)}")
-    print(f"[INFO] Jumlah entri kamus slang: {len(slang_dict)}")
-    return food_list, slang_dict
-
-
-# ──────────────────────────────────────────────
-# 2. KOMPONEN VARIASI TEKS
-# ──────────────────────────────────────────────
-
-# Variasi cara menyebut jumlah
-QUANTITY_WORDS = {
-    1: ["1", "satu", "1 biji", "1 porsi", "seporsi", "1 aja", "satu dong"],
-    2: ["2", "dua", "2 porsi", "dua porsi", "2 biji"],
-    3: ["3", "tiga", "3 porsi", "tiga porsi"],
-    4: ["4", "empat", "4 porsi"],
-    5: ["5", "lima", "5 porsi", "lima porsi"],
-    10: ["10", "sepuluh", "10 porsi"],
-}
-
-# Variasi cara menyebut harga
-def format_price_text(price: int) -> str:
-    templates = [
-        f"{price}",
-        f"Rp{price}",
-        f"Rp. {price}",
-        f"rp {price}",
-        f"{price} rb" if price >= 1000 else f"{price}",
-        f"{price//1000}k" if price >= 1000 else f"{price}",
-        f"{price//1000} ribu" if price >= 1000 else f"{price}",
-        f"harganya {price}",
-        f"harga {price//1000}k" if price >= 1000 else f"harga {price}",
-    ]
-    return random.choice(templates)
-
-# Pola kalimat pesanan
-TEMPLATES = [
-    "mau pesen {qty} {product} dong",
-    "kak minta {qty} {product} ya harga {price}",
-    "beli {qty} {product} {price}",
-    "pesen {qty} {product} kak, total {total}",
-    "order {product} {qty} pcs harga {price}",
-    "nitip {product} ya {qty} aja harga {price}",
-    "{qty} {product} berapa kak?",
-    "mau {qty} {product}, {price} kan?",
-    "pesan {product} {qty} {price}",
-    "bisa gak order {qty} {product} harga {price}",
-    "kak {qty} {product} {price} ya",
-    "{product} {qty} ya kak, harga {price}",
-    "tolong pesanin {qty} {product} dong {price}",
-    "mau dongg {qty} {product} harga {price}",
-    "order {qty} {product} total {total}",
-    "halo kak mau beli {qty} {product} harganya {price}",
-    "{qty} {product} aja kak harga {price}",
-    "beli {product} dulu {qty} {price}",
-    "pesan {product} sebanyak {qty} harga {price}",
-    "kak ada {product}? mau {qty} {price}",
+TEMPLATES_PEMBELI = [
+    "{sapaan} {qty} {produk} {penutup}",
+    "{sapaan} mau pesen {qty} {produk} {penutup}",
+    "kak mau order {qty} {produk} {penutup}",
+    "minta {qty} {produk} {penutup}",
+    "{qty} {produk} {penutup}",
+    "pesan {qty} {produk} {penutup}",
+    "beli {qty} {produk} {penutup}",
+    "{sapaan} bisa pesan {qty} {produk} {penutup}",
+    "mau {qty} {produk} {penutup}",
+    "boleh pesan {qty} {produk} {penutup}",
 ]
 
-# Variasi typo umum
-def apply_typo(text: str) -> str:
-    typo_map = {
-        "pesan": ["pesen", "psean", "peesn"],
-        "beli":  ["belli", "bly", "beli"],
-        "harga": ["hrga", "harga", "hrg"],
-        "ribu":  ["rbu", "rib", "ribu"],
-        "porsi": ["porsi", "porcy", "porxi"],
-        "dong":  ["dng", "donk", "dong"],
-        "kakak": ["kak", "kaka", "kk"],
-    }
-    for word, variants in typo_map.items():
-        if word in text and random.random() < 0.25:
-            text = text.replace(word, random.choice(variants), 1)
-    return text
+TEMPLATES_PENJUAL = [
+    "oke kak {produk} harganya {harga} totalnya {total}",
+    "siap kak {produk} {harga} per porsi total {total} ya",
+    "{produk} {harga} ya kak jadi {total}",
+    "baik kak {produk} {harga} satuan totalnya {total}",
+    "noted kak {produk} {harga} per porsi totalnya {total}",
+    "oke {produk} harga {harga} total {total} ya kak",
+    "siap {produk} {harga} totalnya {total} kak",
+]
 
-# Sisipkan kata slang acak
-def apply_slang(text: str, slang_dict: dict) -> str:
-    slang_insertions = [
-        "btw ", "fyi ", "ygy ", "wkwk ", "hehe ", "nih ", "loh ", "sih ",
+TEMPLATES_TANPA_HARGA_PEMBELI = [
+    "{sapaan} {qty} {produk} {penutup}",
+    "kak mau pesen {qty} {produk} {penutup}",
+    "minta {qty} {produk} {penutup}",
+    "{qty} {produk} {penutup}",
+    "pesan {qty} {produk} {penutup}",
+]
+
+TEMPLATES_TANPA_HARGA_PENJUAL = [
+    "oke siap kak",
+    "noted kak ditunggu ya",
+    "oke kak pesanannya masuk ya",
+    "siap kak",
+    "baik kak",
+    "oke noted",
+    "",
+]
+
+def load_datasets():
+    df_food  = pd.read_csv('../final/food_utama.csv')
+    df_slang = pd.read_csv('../final/slang_utama.csv')
+    food_list  = df_food['name'].dropna().str.lower().str.strip().tolist()
+    slang_dict = dict(zip(
+        df_slang['slang'].str.lower().str.strip(),
+        df_slang['formal'].str.lower().str.strip()
+    ))
+    formal_to_slang = {}
+    for slang, formal in slang_dict.items():
+        if formal not in formal_to_slang:
+            formal_to_slang[formal] = []
+        formal_to_slang[formal].append(slang)
+    return food_list, slang_dict, formal_to_slang
+
+def format_price_text(price: int) -> str:
+    formats = [
+        f"{price // 1000}rb",
+        f"{price // 1000}k",
+        f"{price // 1000} ribu",
+        f"{price // 1000}.000",
+        f"rp{price // 1000}rb",
+        f"rp {price // 1000}.000",
     ]
-    if random.random() < 0.3:
-        text = random.choice(slang_insertions) + text
-    return text
+    return random.choice(formats)
 
-# Variasi kapitalisasi
-def apply_capitalization(text: str) -> str:
-    choice = random.random()
-    if choice < 0.33:
-        return text.lower()
-    elif choice < 0.66:
-        return text.capitalize()
-    else:
-        return text.upper()
+def apply_slang(text: str, formal_to_slang: dict) -> str:
+    words  = text.split()
+    result = []
+    for word in words:
+        word_lower = word.lower()
+        if word_lower in formal_to_slang and random.random() < 0.4:
+            result.append(random.choice(formal_to_slang[word_lower]))
+        else:
+            result.append(word)
+    return " ".join(result)
 
-
-# ──────────────────────────────────────────────
-# 3. GENERATOR UTAMA
-# ──────────────────────────────────────────────
-def generate_order(food_list: list, slang_dict: dict) -> dict:
-    # Pilih produk
-    product = random.choice(food_list)
-
-    # Pilih jumlah
-    qty_int = random.choice(list(QUANTITY_WORDS.keys()))
-    qty_text = random.choice(QUANTITY_WORDS[qty_int])
-
-    # Tentukan harga satuan (kelipatan 500, antara 2.000 – 50.000)
-    price_int = random.choice(range(2000, 50001, 500))
-    total_int = qty_int * price_int
-    price_text = format_price_text(price_int)
-    total_text = format_price_text(total_int)
-
-    # Pilih template
-    template = random.choice(TEMPLATES)
-    text = template.format(
-        product=product,
-        qty=qty_text,
-        price=price_text,
-        total=total_text,
-    )
-
-    # Terapkan variasi
-    text = apply_typo(text)
-    text = apply_slang(text, slang_dict)
-    text = apply_capitalization(text)
-
+def generate_order_dengan_harga(produk, qty, price, pattern):
+    sapaan  = random.choice(SAPAAN)
+    penutup = random.choice(PENUTUP)
+    harga   = format_price_text(price)
+    total   = format_price_text(price * qty)
+    pembeli = random.choice(TEMPLATES_PEMBELI).format(
+        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup
+    ).strip()
+    penjual = random.choice(TEMPLATES_PENJUAL).format(
+        produk=produk, harga=harga, total=total
+    ).strip()
     return {
-        "text":        text,
-        "product":     product,
-        "quantity":    qty_int,
-        "price":       price_int,
+        "input_text"   : f"{pembeli} [SEP] {penjual}",
+        "product"      : produk,
+        "quantity"     : qty,
+        "price_satuan" : price,
+        "pattern"      : pattern,
     }
 
+def generate_order_tanpa_harga(produk, qty, pattern):
+    sapaan  = random.choice(SAPAAN)
+    penutup = random.choice(PENUTUP)
+    pembeli = random.choice(TEMPLATES_TANPA_HARGA_PEMBELI).format(
+        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup
+    ).strip()
+    penjual = random.choice(TEMPLATES_TANPA_HARGA_PENJUAL)
+    input_text = f"{pembeli} [SEP] {penjual}" if penjual else pembeli
+    return {
+        "input_text"   : input_text,
+        "product"      : produk,
+        "quantity"     : qty,
+        "price_satuan" : -1,
+        "pattern"      : pattern,
+    }
 
-# ──────────────────────────────────────────────
-# 4. MAIN — GENERATE & SIMPAN
-# ──────────────────────────────────────────────
-def main():
-    print("=" * 50)
-    print("  ChatKasir - Rule-Based Generation Script")
-    print(f"  Target: {TARGET_ROWS} baris | Seed: {RANDOM_SEED}")
-    print("=" * 50)
+def generate_dataset(food_list, formal_to_slang, target_rows,
+                     ratio_pola_1, ratio_pola_2, ratio_pola_3, ratio_no_harga):
+    rows        = []
+    n_pola1     = int(target_rows * ratio_pola_1)
+    n_pola2     = int(target_rows * ratio_pola_2)
+    n_pola3     = int(target_rows * ratio_pola_3)
+    n_no_harga  = int(target_rows * ratio_no_harga)
+    harga_range = list(range(3000, 75001, 1000))
 
-    food_list, slang_dict = load_datasets()
+    print("  Generating Pola 1...")
+    for _ in range(n_pola1):
+        rows.append(generate_order_dengan_harga(
+            random.choice(food_list), random.randint(1, 10),
+            random.choice(harga_range), pattern=1
+        ))
 
-    print(f"\n[INFO] Mulai generate {TARGET_ROWS} data sintetis...")
-    records = [generate_order(food_list, slang_dict) for _ in range(TARGET_ROWS)]
+    print("  Generating Pola 2...")
+    for _ in range(n_pola2):
+        rows.append(generate_order_dengan_harga(
+            random.choice(food_list), random.randint(1, 10),
+            random.choice(harga_range), pattern=2
+        ))
 
-    df_out = pd.DataFrame(records)
+    print("  Generating Pola 3...")
+    for _ in range(n_pola3):
+        row = generate_order_dengan_harga(
+            random.choice(food_list), random.randint(1, 10),
+            random.choice(harga_range), pattern=3
+        )
+        row["input_text"] = apply_slang(row["input_text"], formal_to_slang)
+        rows.append(row)
 
-    # Cek duplikat teks
-    n_dup = df_out["text"].duplicated().sum()
-    print(f"[INFO] Duplikat teks ditemukan: {n_dup} baris (wajar jika kecil)")
+    print("  Generating baris tanpa harga...")
+    for _ in range(n_no_harga):
+        rows.append(generate_order_tanpa_harga(
+            random.choice(food_list), random.randint(1, 10),
+            random.choice([1, 2, 3])
+        ))
 
-    # Simpan ke CSV
-    df_out.to_csv(
-        OUTPUT_FILE,
-        index=False,
-        sep=";",                    # 🔥 ganti delimiter
-        encoding="utf-8-sig",
-        quoting=csv.QUOTE_ALL      # 🔥 biar aman tanda "
-    )
-    df_out.to_excel("synthetic_orders_one.xlsx", index=False)
-    print(f"\n[OK] File disimpan: {OUTPUT_FILE}")
-    print(f"[OK] Total baris  : {len(df_out)}")
-    print(f"\nPreview 5 baris pertama:")
-    print(df_out.head().to_string(index=False))
-    print("\n[DONE] Script selesai dijalankan.")
-
+    random.shuffle(rows)
+    return rows
 
 if __name__ == "__main__":
-    main()
+    RANDOM_SEED    = 42
+    RATIO_POLA_1   = 0.40
+    RATIO_POLA_2   = 0.40
+    RATIO_POLA_3   = 0.20
+    RATIO_NO_HARGA = 0.175
+
+    random.seed(RANDOM_SEED)
+
+    print("Loading datasets...")
+    food_list, slang_dict, formal_to_slang = load_datasets()
+    print(f"Food list   : {len(food_list)} produk")
+    print(f"Slang dict  : {len(slang_dict)} entri")
+
+    for target_rows in [10000, 50000, 100000]:
+        print(f"\n{'='*50}")
+        print(f"Generating {target_rows} baris...")
+        print(f"{'='*50}")
+
+        rows = generate_dataset(
+            food_list, formal_to_slang, target_rows,
+            RATIO_POLA_1, RATIO_POLA_2, RATIO_POLA_3, RATIO_NO_HARGA
+        )
+        df = pd.DataFrame(rows)
+
+        print(f"\n=== HASIL {target_rows} ===")
+        print(f"Total baris              : {len(df)}")
+        print(f"Distribusi pattern       :\n{df['pattern'].value_counts()}")
+        print(f"Baris tanpa harga        : {(df['price_satuan'] == -1).sum()}")
+        print(f"Produk unik ter-generate : {df['product'].nunique()} dari {len(food_list)}")
+        print(f"Produk belum ter-generate: {len(food_list) - df['product'].nunique()}")
+        print(f"\nTop 10 produk terbanyak muncul:")
+        print(df['product'].value_counts().head(10))
+        print(f"\nPreview:\n{df.head(5)}")
+
+        filename = f'synthetic_orders_{target_rows}.csv'
+        df.to_csv(filename, index=False)
+        print(f"Tersimpan -> {filename}")
