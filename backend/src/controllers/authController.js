@@ -23,8 +23,8 @@ const register = async (req, res) => {
 
   const { error: profileError } = await supabase.from("users").insert({
     id: authData.user.id,
-    email: email,
     full_name: full_name,
+    avatar_url: null,
   });
 
   if (profileError) {
