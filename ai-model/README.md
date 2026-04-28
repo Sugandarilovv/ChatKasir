@@ -1,4 +1,4 @@
-# AI-1 Model Architect — ChatKasir
+# AI-1 Model Architect - Achmad Rifan
 
 Bagian ini berisi seluruh pekerjaan **AI-1 (Model Architect)**: perancangan arsitektur,
 pipeline pelatihan, dan evaluasi model Deep Learning NLP yang menjadi inti dari aplikasi
@@ -96,7 +96,7 @@ input mentah yang masuk ke sistem selalu mengandung metadata waktu dan tanggal y
 **tidak relevan untuk model** dan harus dibersihkan oleh preprocessing sebelum teks
 masuk ke model AI.
 
-Ada tiga pola percakapan nyata yang menjadi target pemrosesan ChatKasir. Ketiga pola
+Ada 3 pola percakapan nyata yang menjadi target pemrosesan ChatKasir. Ketiga pola
 ini mendefinisikan scope model dan menjadi acuan bagi DS-1 dalam membuat dataset
 sintetis.
 
@@ -122,18 +122,14 @@ Model kemudian menghasilkan: `product = "nasi goreng"`, `quantity = 2`,
 
 ### Pola 2: Multi-Produk dengan Harga Satuan Eksplisit
 
-Pola ini adalah yang paling umum di UMKM makanan: pembeli memesan beberapa produk
-sekaligus dan penjual menyebutkan harga satuan masing-masing sebelum memberikan
-total. Karena ada lebih dari satu produk, sistem memproses setiap produk satu per satu
-— bukan sekaligus dalam satu prediksi.
+Pola ini adalah yang paling umum di UMKM makanan: pembeli memesan beberapa produk sekaligus dan penjual menyebutkan harga satuan masing-masing sebelum memberikan total. Karena ada lebih dari satu produk, sistem memproses setiap produk satu per satu, bukan sekaligus dalam satu prediksi.
 
 ```
 [07.42, 22/4/2026] Pembeli: bang pesan 2 nasi goreng, 2 es teh ya
 [07.44, 22/4/2026] Penjual: oke kak, nasi goreng harganya 10rb ya, dan es tehnya 5rb, jadi totalnya 30rb kak
 ```
 
-Setelah preprocessing, teks bersih yang sama diumpankan ke model dua kali — sekali
-untuk setiap produk yang terdeteksi:
+Setelah preprocessing, teks bersih yang sama diumpankan ke model dua kali, sekali untuk setiap produk yang terdeteksi:
 
 ```
 # Iterasi 1 — untuk produk pertama
@@ -145,14 +141,11 @@ bang pesan 2 nasi goreng 2 es teh ya [SEP] nasi goreng harganya 10rb es tehnya 5
 → product: es teh | quantity: 2 | price_satuan: 5000
 ```
 
-Strategi pemisahan produk ini adalah tanggung jawab logika di sisi AI-2 (Denny),
-bukan di dalam model itu sendiri.
+Strategi pemisahan produk ini adalah tanggung jawab logika di sisi AI-2 (Denny), bukan di dalam model itu sendiri.
 
-### Pola 3: Chat Pesanan Slang, Typo, dan Singkatan Berat
+### Pola 3: Chat Pesanan Penuh Slang
 
-Pola ini merepresentasikan pembeli muda yang mengetik tanpa memperhatikan ejaan.
-Preprocessing normalisasi slang menggunakan kamus dari DS-1 (Faradi) wajib dijalankan
-sebelum teks masuk ke model, karena tanpa normalisasi model tidak akan mengenali
+Pola ini merepresentasikan pembeli muda yang mengetik tanpa memperhatikan ejaan. Preprocessing normalisasi slang menggunakan kamus dari DS-1 (Faradi) wajib dijalankan sebelum teks masuk ke model, karena tanpa normalisasi model tidak akan mengenali
 `"nasi grngg"` sebagai `"nasi goreng"`.
 
 ```
@@ -168,20 +161,18 @@ abang mau pesan nasi goreng 2 sama es teh 1 berapa semua [SEP] nasi goreng 10rb 
 
 ---
 
-## Alur Pemrosesan Lengkap: Dari Input Mentah ke Dashboard
+## Alur Pemrosesan Lengkap: Dari Input Mentah ke Tampilan Dashboard
 
-Bagian ini menjelaskan perjalanan data dari saat pengguna menekan tombol paste di
-aplikasi hingga angka transaksi muncul di dashboard. Penting dipahami oleh seluruh
-anggota tim karena setiap komponen sistem bertanggung jawab atas satu tahap berbeda.
+Bagian ini menjelaskan perjalanan data dari saat pengguna menekan tombol paste di aplikasi hingga angka transaksi muncul di dashboard. Penting dipahami oleh seluruh anggota tim karena setiap komponen sistem bertanggung jawab atas satu tahap berbeda.
 
 ```
-[1] PENGGUNA — copy-paste chat WhatsApp ke aplikasi (FS-1 Alfan)
+[1] PENGGUNA: copy-paste chat WhatsApp ke aplikasi (FS-1 Alfan)
     ↓
     Input mentah:
     "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya
      [07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb"
 
-[2] PREPROCESSING — tanggung jawab AI-2 (Denny) di sisi API
+[2] PREPROCESSING: tanggung jawab AI-2 (Denny) di sisi API
     ↓
     Langkah 2a: Hapus timestamp dengan regex
                 "[07.42, 22/4/2026] Pembeli: " → dihapus
@@ -195,16 +186,16 @@ anggota tim karena setiap komponen sistem bertanggung jawab atas satu tahap berb
     ↓
     Teks bersih siap masuk model
 
-[3] MODEL AI-1 (Rifan) — prediksi tiga entitas
+[3] MODEL AI-1 (Rifan): prediksi tiga entitas
     ↓
     Input  : "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb"
     Output : {
-               "product":      "nasi goreng",
-               "quantity":     2,
-               "price_satuan": 10000          ← harga SATUAN, rupiah penuh
+               "product": "nasi goreng",
+               "quantity": 2,
+               "price_satuan": 10000 ← harga SATUAN, rupiah penuh
              }
 
-[4] POSTPROCESSING — tanggung jawab AI-2 (Denny) di sisi API
+[4] POSTPROCESSING: tanggung jawab AI-2 (Denny) di sisi API
     ↓
     Hitung total prediksi  : quantity × price_satuan = 2 × 10000 = 20000
     Ekstrak total dari chat: regex menemukan "totalnya 20rb" → 20000
@@ -219,11 +210,11 @@ anggota tim karena setiap komponen sistem bertanggung jawab atas satu tahap berb
       "confidence":   "HIGH"
     }
 
-[5] BACKEND — tanggung jawab FS-2 (Reihan)
+[5] BACKEND: tanggung jawab FS-2 (Reihan)
     ↓
     Simpan ke database PostgreSQL (tabel transaksi)
 
-[6] DASHBOARD — tanggung jawab FS-1 (Alfan)
+[6] DASHBOARD: tanggung jawab FS-1 (Alfan)
     ↓
     Tampilkan ke penjual:
     ┌─────────────┬────────┬──────────────┬──────────┐
@@ -237,9 +228,7 @@ anggota tim karena setiap komponen sistem bertanggung jawab atas satu tahap berb
 
 ## Arsitektur Model
 
-Model menggunakan pendekatan **Multi-Output dengan Shared Bidirectional LSTM Encoder**
-untuk mengekstrak tiga entitas sekaligus dari satu teks bersih yang sudah melalui
-preprocessing. Kata "shared" berarti satu encoder memproses seluruh kalimat sekali,
+Model menggunakan pendekatan **Multi-Output dengan Shared Bidirectional LSTM Encoder** untuk mengekstrak tiga entitas sekaligus dari satu teks bersih yang sudah melalui preprocessing. Kata "shared" berarti satu encoder memproses seluruh kalimat sekali,
 lalu hasilnya dibagikan ke tiga output head yang masing-masing mengekstrak satu entitas, jauh lebih efisien dibanding membuat tiga encoder terpisah.
 
 ```
@@ -302,9 +291,9 @@ Contoh: "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb"
 
 OUTPUT MODEL (tiga nilai, dikirim ke AI-2 Denny)
 {
-  "product":      "nasi goreng",  ← nama produk baku, huruf kecil
-  "quantity":     2,              ← integer, default 1 jika tidak disebutkan
-  "price_satuan": 10000           ← rupiah PENUH — BUKAN ribuan, BUKAN total
+  "product": "nasi goreng",  ← nama produk baku, huruf kecil
+  "quantity": 2,             ← integer, default 1 jika tidak disebutkan
+  "price_satuan": 10000      ← rupiah PENUH, BUKAN ribuan, BUKAN total
 }
 ```
 
@@ -320,9 +309,160 @@ OUTPUT MODEL (tiga nilai, dikirim ke AI-2 Denny)
 | Dropout | 0.3 | Mengurangi risiko overfitting pada dataset skala kecil |
 | Harga total | Tidak diprediksi model | Dihitung deterministik oleh AI-2: `quantity × price_satuan` |
 
-Detail lengkap, kode, dan hasil verifikasi ada di
-`notebooks/01_model_architecture.ipynb`.
+Detail lengkap, kode, dan hasil verifikasi ada di `notebooks/01_model_architecture.ipynb`.
 
+---
+
+## Custom Loss Function untuk 3 Output Head
+
+Model ChatKasir memiliki 3 output head yang masing-masing menyelesaikan jenis tugas yang berbeda, 1 klasifikasi dan 2 regresi. 
+
+Karena sifat matematika dari setiap tugas berbeda, maka definisi "seberapa salah sebuah prediksi" juga berbeda untuk setiap head. Itulah mengapa setiap head membutuhkan loss function yang berbeda pula.
+ 
+Prinsip yang mendasari seluruh pilihan di bawah ini adalah:
+**loss function harus mencerminkan sifat matematika dari apa yang diprediksi, bukan sekadar alat pengukur error generik.**
+
+### Head product: Sparse Categorical Crossentropy
+ 
+Output head `product` melakukan tugas klasifikasi: dari sekian ribu nama produk yang dikenal model (berasal dari dataset `food_utama.csv` DS-1), model memilih satu yang paling mungkin. Output layer menggunakan `softmax` yang menghasilkan vektor probabilitas, misalnya `[0.02, 0.87, 0.01, ...]` di mana nilai tertinggi adalah prediksi produk.
+ 
+Loss function yang tepat untuk ini adalah **Sparse Categorical Crossentropy**. Ia mengukur jarak antara distribusi probabilitas yang diprediksi model versus distribusi "sempurna" di mana probabilitas 1.0 ada tepat di posisi produk yang benar dan 0.0 di semua posisi lainnya. Intuisinya: **keyakinan yang salah dihukum jauh lebih keras daripada keraguan yang salah**. Jika model 87% yakin produknya "nasi goreng" dan ternyata memang benar, loss-nya kecil. Jika model 87% yakin tapi ternyata salah, loss-nya besar.
+ 
+Varian "Sparse" dipilih, bukan Categorical Crossentropy biasa, karena label produk di dataset disimpan sebagai integer tunggal (misalnya `2` untuk "nasi goreng"), bukan sebagai one-hot vector `[0, 1, 0, 0, ...]`. Dengan ratusan hingga ribuan kelas produk dari `food.csv`, format one-hot akan memakan memori yang sangat besar tanpa manfaat komputasi apapun. Sparse Categorical Crossentropy menghasilkan nilai loss yang identik secara matematis
+dengan jauh lebih efisien.
+ 
+```
+tf.keras.losses.SparseCategoricalCrossentropy()
+```
+ 
+### Head quantity: Mean Squared Error
+ 
+Output head `quantity` melakukan tugas regresi: memprediksi angka kontinu yang merepresentasikan jumlah pesanan. Output layer menggunakan `relu` yang menghasilkan satu angka non-negatif, misalnya `2.3` yang kemudian dibulatkan menjadi integer `2` saat inferensi.
+ 
+Loss function yang tepat untuk ini adalah **Mean Squared Error (MSE)**. Ia mengukur rata-rata dari kuadrat selisih antara prediksi dan jawaban yang benar. Pengkuadratan memiliki dua efek yang keduanya diinginkan: 
+- Pertama, error negatif dan positif diperlakukan setara (selisih `-3` dan `+3` sama-sama menghasilkan loss `9`). 
+- Kedua dan lebih penting, **error besar dihukum secara tidak proporsional** selisih 1 menghasilkan loss 1, tapi selisih 3 menghasilkan loss 9. Ini mendorong model menghindari kesalahan besar, yang masuk akal untuk konteks jumlah pesanan di mana prediksi "10 porsi" untuk pesanan yang sebenarnya "2 porsi" jauh lebih merusak, daripada prediksi "3 porsi".
+ 
+```
+tf.keras.losses.MeanSquaredError()
+```
+ 
+> **Catatan penting tentang skala:** Karena `quantity` bernilai kecil (1–10)
+> sedangkan `price_satuan` bisa bernilai puluhan ribu, loss dari `price_satuan`
+> akan mendominasi secara masif jika tidak ditangani. Inilah mengapa
+> `price_satuan` **dinormalisasi dengan dibagi 1000** sebelum masuk ke training
+> untuk menyamakan skala kedua output regresi agar keduanya berkontribusi
+> secara proporsional terhadap total loss.
+ 
+### Head price: MaskedPriceLoss (Custom)
+ 
+Output head `price` juga melakukan tugas regresi, tapi memiliki karakteristik unik yang tidak bisa ditangani oleh MSE standar: **sebagian baris dataset memiliki `price_satuan = -1`**, yaitu kasus di mana harga tidak disebutkan dalam percakapan chat (misalnya pembeli hanya berkata `"bang 2 nasi goreng ya"` tanpa ada balasan penjual yang menyebut harga).
+ 
+Jika MSE standar digunakan, ia akan menghukum model setiap kali prediksinya tidak sama dengan `-1` pada baris-baris tersebut, yang secara konseptual salah, karena `-1` bukan harga yang valid melainkan hanya sentinel penanda "harga tidak diketahui". Model akan belajar pola yang keliru: mencoba memprediksi `-1` untuk kasus yang sebenarnya tidak memiliki jawaban.
+ 
+**MaskedPriceLoss menyelesaikan masalah ini dengan mengecualikan baris bernilai `-1` dari perhitungan loss sama sekali.** Hanya baris yang memiliki harga valid yang berkontribusi terhadap gradient dan pembaruan bobot model. Dengan cara ini, model tidak dihukum untuk situasi yang memang tidak memiliki jawaban, ia belajar untuk "mengakui ketidaktahuan" alih-alih menebak angka acak.
+ 
+Konsep masking ini terinspirasi dari teknik serupa yang digunakan dalam sequence labeling (Lample et al., 2016) untuk mengabaikan token padding saat menghitung loss, namun diterapkan di level baris data alih-alih level token.
+ 
+```
+class MaskedPriceLoss(tf.keras.losses.Loss):
+    """
+    Custom Loss Function untuk output head 'price_satuan'.
+ 
+    Mengecualikan baris dengan price_satuan = -1 (harga tidak diketahui)
+    dari perhitungan loss, sehingga model tidak belajar pola yang keliru
+    dari data yang memang tidak memiliki jawaban valid.
+ 
+    Nilai sentinel -1 dipilih karena:
+    - Harga valid selalu >= 0, sehingga -1 tidak ambigu
+    - Aman secara matematis (tidak seperti NaN yang meracuni gradient)
+    - Mudah dicek dengan operasi != -1
+    """
+ 
+    def __init__(self, name="masked_price_loss"):
+        super().__init__(name=name)
+        self.NULL_INDICATOR = -1.0
+ 
+    def call(self, y_true, y_pred):
+        # 1. Buat mask - True (1.0) untuk baris yang PUNYA harga valid
+        mask = tf.cast(
+            tf.not_equal(y_true, self.NULL_INDICATOR),
+            dtype=tf.float32
+        )
+        # Contoh: y_true = [-1, 10.0, 8.0, -1, 5.0]  ← sudah dinormalisasi ÷1000
+        # mask  = [  0,  1.0,  1.0,   0,  1.0]
+ 
+        # 2. Hitung squared error untuk semua baris
+        squared_error = tf.square(y_true - y_pred)
+ 
+        # 3. Terapkan mask - baris null menghasilkan error = 0
+        masked_error = squared_error * mask
+ 
+        # 4. Rata-ratakan berdasarkan jumlah baris VALID saja
+        # (bukan total baris) agar skala loss tidak mengecil secara palsu
+        n_valid = tf.maximum(tf.reduce_sum(mask), 1.0)  # hindari division by zero
+        loss = tf.reduce_sum(masked_error) / n_valid
+ 
+        return loss
+```
+  
+### Bagaimana Ketiga Loss Digabungkan
+ 
+Saat kompilasi model, TensorFlow menghitung loss masing-masing head secara terpisah lalu menjumlahkannya menjadi satu nilai *total loss* yang digunakan untuk memperbarui seluruh bobot model melalui backpropagation. Parameter `loss_weights` mengontrol seberapa besar kontribusi masing-masing head terhadap total loss.
+ 
+```
+model.compile(
+    optimizer="adam",
+ 
+    loss={
+        # Klasifikasi multi-kelas - label berupa integer, bukan one-hot
+        "product":  tf.keras.losses.SparseCategoricalCrossentropy(),
+ 
+        # Regresi jumlah - MSE standar, quantity bernilai kecil (1–10)
+        "quantity": tf.keras.losses.MeanSquaredError(),
+ 
+        # Regresi harga - custom, mengabaikan baris dengan price = -1
+        # price dinormalisasi ÷1000 sebelum training untuk samakan skala
+        "price":    MaskedPriceLoss(),
+    },
+ 
+    loss_weights={
+        # Bobot awal yang sama untuk semua head
+        # Akan di-tune di Minggu 3 jika salah satu head dominan
+        # atau sulit konvergen berdasarkan kurva loss di TensorBoard
+        "product":  1.0,
+        "quantity": 1.0,
+        "price":    1.0,
+    }
+)
+```
+ 
+Ringkasan keputusan loss function untuk seluruh tim:
+ 
+```
+┌──────────────┬─────────────────────────────────┬────────────────────────────┐
+│ Output Head  │ Loss Function                   │ Alasan                     │
+├──────────────┼─────────────────────────────────┼────────────────────────────┤
+│ product      │ SparseCategoricalCrossentropy   │ Klasifikasi multi-kelas,   │
+│              │ (standar TensorFlow)            │ label berupa integer       │
+├──────────────┼─────────────────────────────────┼────────────────────────────┤
+│ quantity     │ MeanSquaredError                │ Regresi angka kontinu,     │
+│              │ (standar TensorFlow)            │ hukum error besar lebih    │
+│              │                                 │ keras (dikuadratkan)       │
+├──────────────┼─────────────────────────────────┼────────────────────────────┤
+│ price        │ MaskedPriceLoss                 │ Regresi dengan data tidak  │
+│ (price_stn)  │ (CUSTOM — AI-1)                 │ lengkap: abaikan baris     │
+│              │                                 │ price_satuan = -1          │
+└──────────────┴─────────────────────────────────┴────────────────────────────┘
+ 
+Catatan untuk DS-1 (Faradi): price_satuan yang tidak diketahui diisi dengan
+nilai sentinel -1 (bukan null, NaN, atau 0) di dataset sintetis.
+
+Catatan untuk AI-2 (Denny): model mengembalikan price_satuan dalam skala
+rupiah penuh SETELAH de-normalisasi (×1000). De-normalisasi dilakukan di
+postprocessing sebelum response dikirim ke backend, bukan di dalam model.
+```
+ 
 ---
 
 ## Catatan untuk Anggota Tim
@@ -360,9 +500,9 @@ Contoh format baris yang benar di dataset:
 ```
 input_text                                                          | product      | quantity | price_satuan
 --------------------------------------------------------------------|--------------|----------|-------------
-"bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb total 20rb"| nasi goreng  | 2        | 10000
-"pesen es teh 3 [SEP] es teh 5rb per gelas total 15rb ya kak"      | es teh       | 3        | 5000
-"bg mau nasi grngg 2 [SEP] nasi goreng 10rb ya"                    | nasi goreng  | 2        | 10000
+"bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb total 20rb" | nasi goreng  | 2        | 10000
+"pesen es teh 3 [SEP] es teh 5rb per gelas total 15rb ya kak"       | es teh       | 3        | 5000
+"bg mau nasi grngg 2 [SEP] nasi goreng 10rb ya"                     | nasi goreng  | 2        | 10000
 ```
 
 ### Untuk AI-2: Denny (API & Inference)
