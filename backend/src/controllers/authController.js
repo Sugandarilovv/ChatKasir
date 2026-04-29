@@ -4,14 +4,12 @@ const supabase = require("../config/supabase");
 const register = async (req, res) => {
   const { email, password, full_name } = req.body;
 
-  // Validasi input sesuai API Contract
   if (!email || !password || !full_name) {
     return res.status(400).json({
       error: "Email, password, dan nama lengkap wajib diisi",
     });
   }
 
-  // Daftar ke Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -42,4 +40,32 @@ const register = async (req, res) => {
   });
 };
 
-module.exports = { register };
+// POST /auth/login
+const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      error: "Email dan password wajib diisi",
+    });
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return res.status(401).json({
+      error: "Email atau password salah",
+    });
+  }
+
+  return res.status(200).json({
+    message: "Login berhasil",
+    token: data.session.access_token,
+    user_id: data.user.id,
+  });
+};
+
+module.exports = { register, login };
