@@ -74,7 +74,7 @@ df = df.drop(columns=['panjang_kata'])
 print(f"\nVerifikasi final:")
 print(f"Nilai kosong     : {df['name'].isnull().sum()}")
 print(f"Duplikat         : {df.duplicated().sum()}")
-print(f"Spasi berlebih   : {df['name'].str.contains(r'chr(92)s{2,}', regex=True).sum()}")
+print(f"Spasi berlebih   : {df['name'].str.contains(r'\s{2,}', regex=True).sum()}")
 print(f"Total baris final: {len(df)}")
 print(f"\nPreview:\n{df.head(10)}")
 

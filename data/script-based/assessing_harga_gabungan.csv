@@ -1,0 +1,19 @@
+dataset,target_rows,format_harga,jumlah_baris,persentase
+synthetic_orders_weighted_10000.csv,10000,rb (contoh: 15rb),46084,45.9
+synthetic_orders_weighted_10000.csv,10000,k (contoh: 15k),25297,25.2
+synthetic_orders_weighted_10000.csv,10000,ribu (contoh: 15 ribu),23394,23.3
+synthetic_orders_weighted_10000.csv,10000,.000 (contoh: 15.000),46209,46.0
+synthetic_orders_weighted_10000.csv,10000,rp...rb (contoh: rp15rb),25327,25.2
+synthetic_orders_weighted_10000.csv,10000,rp ...000 (contoh: rp 15.000),25491,25.4
+synthetic_orders_weighted_50000.csv,50000,rb (contoh: 15rb),46084,45.9
+synthetic_orders_weighted_50000.csv,50000,k (contoh: 15k),25297,25.2
+synthetic_orders_weighted_50000.csv,50000,ribu (contoh: 15 ribu),23394,23.3
+synthetic_orders_weighted_50000.csv,50000,.000 (contoh: 15.000),46209,46.0
+synthetic_orders_weighted_50000.csv,50000,rp...rb (contoh: rp15rb),25327,25.2
+synthetic_orders_weighted_50000.csv,50000,rp ...000 (contoh: rp 15.000),25491,25.4
+synthetic_orders_weighted_100000.csv,100000,rb (contoh: 15rb),46084,45.9
+synthetic_orders_weighted_100000.csv,100000,k (contoh: 15k),25297,25.2
+synthetic_orders_weighted_100000.csv,100000,ribu (contoh: 15 ribu),23394,23.3
+synthetic_orders_weighted_100000.csv,100000,.000 (contoh: 15.000),46209,46.0
+synthetic_orders_weighted_100000.csv,100000,rp...rb (contoh: rp15rb),25327,25.2
+synthetic_orders_weighted_100000.csv,100000,rp ...000 (contoh: rp 15.000),25491,25.4
