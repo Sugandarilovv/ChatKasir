@@ -1,6 +1,6 @@
 # Research Notes - AI-1 Model Architect
 
-Cattatan studi referensi ilmiah yang memengaruhi keputusan desain arsitektur model ChatKasir
+Catatan studi referensi ilmiah yang memengaruhi keputusan desain arsitektur model ChatKasir
 
 ---
 

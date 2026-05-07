@@ -1,0 +1,7 @@
+dataset,n_unique_target,total_baris,pattern_1,pattern_2,pattern_3,baris_tanpa_harga,produk_unik_ter_generate,total_produk_food_list,produk_belum_ter_generate
+synthetic_orders_500food_10000.csv,500,10050,3938,3891,2221,1750,500,18558,18058
+synthetic_orders_500food_50000.csv,500,50250,19496,19517,11237,8750,500,18558,18058
+synthetic_orders_500food_100000.csv,500,100500,39028,39148,22324,17500,500,18558,18058
+synthetic_orders_1000food_10000.csv,1000,10050,3935,3892,2223,1750,1000,18558,17558
+synthetic_orders_1000food_50000.csv,1000,50250,19488,19531,11231,8750,1000,18558,17558
+synthetic_orders_1000food_100000.csv,1000,100500,39034,39151,22315,17500,1000,18558,17558
