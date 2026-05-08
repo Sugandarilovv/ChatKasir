@@ -20,23 +20,27 @@ Bagian ini berisi seluruh pekerjaan **AI-1 (Model Architect)**: perancangan arsi
 
 ## Struktur Folder & File
 
-```text
+```
 ai-model/
 ├── notebooks/
-│   ├── 01_model_architecture.ipynb   # Eksperimen arsitektur Transformer
-│   ├── 02_training.ipynb             # Proses training dengan Dynamic Weighting
+│   ├── 01_model_architecture.ipynb   # Eksperimen arsitektur, Tokenizer, & Data Prep
+│   ├── 02_training.ipynb             # Proses training dengan Custom Loop & Dynamic Weighting
 │   └── 03_evaluation.ipynb           # Evaluasi metrik dan visualisasi
 ├── src/
-│   ├── model.py                      # Fungsi arsitektur final
-│   └── custom_loss.py              # Fungsi loss kustom
+│   ├── model.py                      # Fungsi arsitektur final (Transformer + Branches)
+│   └── custom_loss.py                # Fungsi loss kustom (MaskedPriceLoss)
 ├── assets/
-│   └── tokenizers/                   # File tokenizer Subword/BPE
-├── logs/                             # Log TensorBoard untuk pemantauan
+│   ├── tokenizers/                   # Folder penyimpanan model Tokenizer
+│   │   └── tokenizer.json            # File hasil export tokenizer
+│   └── data/                         # Folder penyimpanan dataset & konfigurasi
+│       ├── dataset_chatkasir.npz     # Hasil pembagian Train/Val/Test
+│       └── model_config.json         # Parameter vocab_size & max_length untuk training
+├── logs/                             # Log TensorBoard untuk pemantauan training
 ├── RESEARCH_NOTES.md                 # Catatan referensi ilmiah
-├── pyproject.toml
-├── uv.lock
-├── .python-version
-└── README.md
+├── pyproject.toml                    # Konfigurasi dependensi project
+├── uv.lock                           # Lockfile dependensi
+├── .python-version                   # Versi Python yang digunakan
+└── README.md                         # Dokumentasi utama project
 ```
 
 ---
