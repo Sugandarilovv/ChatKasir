@@ -199,6 +199,15 @@ Berbeda dengan model standar yang menggunakan fungsi otomatis `model.fit()`, Cha
 
 > **Catatan Teknis:** Seluruh logika ini diimplementasikan dalam fungsi kustom `train_step()` dan `val_step()` yang dapat ditemukan di `src/model.py` atau `notebooks/02_training.ipynb`.
 
+### Pemantauan Performa (Metrik & Loss) Saat Pelatihan
+
+Karena arsitektur model ini menggunakan pendekatan *Multi-Task Learning* (mengerjakan 3 tugas berbeda secara bersamaan), cara kita memantau kepintaran model selama proses pelatihan di `02_training.ipynb` juga dibedakan berdasarkan jenis tugasnya:
+
+* **Akurasi (Accuracy) untuk Cabang Produk:** Memprediksi tag produk (`O`, `B-PROD`, `I-PROD`) adalah masalah **Klasifikasi**. Sama seperti soal ujian pilihan ganda, jawabannya mutlak antara Benar atau Salah. Oleh karena itu, performa cabang ini dipantau menggunakan metrik `SparseCategoricalAccuracy` yang ditampilkan dalam bentuk **Persentase (%)**. Semakin mendekati 100%, semakin ahli model dalam mengenali nama menu/produk.
+
+* **Selisih Kesalahan (Error/Loss) untuk Cabang Jumlah & Harga:** Memprediksi *quantity* dan *price_satuan* adalah masalah **Regresi** (menebak angka bebas yang bisa berbentuk desimal). Sangat mustahil bagi komputer untuk menebak angka desimal dengan akurasi presisi 100% sama persis (misal: tebakan `29.999,99` dianggap salah total jika nilai aslinya `30.000` menggunakan metrik klasifikasi). 
+  Oleh karena itu, cabang ini **tidak menggunakan metrik Akurasi**, melainkan dipantau menggunakan nilai selisih kesalahan atau **Loss (MSE)**. Sistem akan melihat "jarak" kemelesetan tebakan model; semakin kecil angka *loss*-nya (mendekati 0), semakin akurat dan pintar tebakan angkanya.
+
 ---
 
 ## Custom Loss Function & Optimasi Training
@@ -208,7 +217,7 @@ Karena sifat matematika dari setiap tugas berbeda, *loss function* yang digunaka
 | Cabang | Loss Function | Alasan |
 | :--- | :--- | :--- |
 | **Product** | Categorical Crossentropy / CRF Loss | Mengukur akurasi *sequence tagging* kata per kata. Keyakinan yang salah dihukum keras. |
-| **Quantity** | Mean Squared Error (MSE) | Menghukum error besar secara tidak proporsional (dikuadratkan). Selisih tebakan "10 porsi" untuk pesanan "2 porsi" sangat merusak. |
+| **Quantity** | Mean Absolute Error (MAE) | Sesuai dengan ketentuan target performa evaluasi tugas (MAE maksimal 0,02). |
 | **Price** | **MaskedPriceLoss (Custom)** | **Wajib dipertahankan.** Mengabaikan baris bernilai `-1` (harga tidak disebutkan di chat). Jika MSE standar dipakai, model akan belajar keliru menebak angka `-1`. |
 
 > **Optimasi Tambahan:** Diterapkan **Dynamic Loss Weighting** agar saat proses *training*, model memberikan porsi perhatian yang seimbang antara memprediksi Produk, Jumlah, dan Harga — tanpa ada cabang yang mendominasi.
