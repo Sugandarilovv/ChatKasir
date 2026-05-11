@@ -10,8 +10,11 @@ const COLORS = {
   warning: { bg: '#fffbeb', border: '#fcd34d', text: '#92400e' },
 }
 
-let _show = null
-export function showToast(msg, type = 'success') { _show?.(msg, type) }
+// PINDAHKAN LOGIKA INI KE DALAM PROVIDER AGAR VITE TIDAK ERROR
+let _showGlobal = null
+export const showToast = (msg, type = 'success') => {
+  if (_showGlobal) _showGlobal(msg, type)
+}
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
@@ -26,13 +29,26 @@ export function ToastProvider({ children }) {
     }, 1800)
   }, [])
 
-  _show = show
+  _showGlobal = show // Simpan fungsi ke variabel luar
 
   return (
     <ToastCtx.Provider value={show}>
       {children}
-      {/* Portal ke tengah atas — z-index 9999 agar tidak tertutup apapun */}
-      <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+      {/* PERBAIKAN POSISI TENAH: Pastikan width & left diatur seperti ini */}
+      <div style={{ 
+        position: 'fixed', 
+        top: 70, 
+        left: '65%', 
+        transform: 'translateX(-60%)', 
+        zIndex: 9999, 
+        pointerEvents: 'none', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 8, 
+        alignItems: 'center',
+        width: '10%', 
+        maxWidth: '450px' // Agar tidak terlalu lebar di tablet/laptop
+      }}>
         {toasts.map((t) => {
           const c = COLORS[t.type] || COLORS.info
           return (
@@ -43,8 +59,8 @@ export function ToastProvider({ children }) {
                 border: `1px solid ${c.border}`,
                 color: c.text,
                 borderRadius: 14,
-                padding: '10px 18px',
-                fontSize: 13,
+                padding: '4px 9px',
+                fontSize: 8,
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
                 boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
@@ -52,8 +68,9 @@ export function ToastProvider({ children }) {
                 alignItems: 'center',
                 gap: 8,
                 pointerEvents: 'auto',
+                width: 'fit-content' // Supaya box tetap pas dengan tulisan
               }}>
-              <span style={{ fontSize: 15 }}>{ICONS[t.type]}</span>
+              <span style={{ fontSize: 11 }}>{ICONS[t.type]}</span>
               {t.msg}
             </div>
           )
