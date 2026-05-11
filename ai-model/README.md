@@ -164,19 +164,19 @@ Menyajikan data dari *database* ke layar penjual dalam bentuk antarmuka yang ram
 
 ---
 
-## Arsitektur Model: Transformer + Task-Specific Branches
+## Arsitektur Model: "Dual-Brain" (Transformer + Task-Specific Branches)
 
-Model berevolusi dari *Shared Bi-LSTM* menjadi **Transformer Encoder** yang dilatih dari nol (*from scratch*). Pendekatan *Multi-Task Learning* dipertahankan, namun kini menggunakan **cabang spesifik** untuk mencegah entitas saling bertabrakan (*Task Interference*).
+Model berevolusi menggunakan pendekatan **Hybrid Dual-Brain**. Bagian awal menggunakan **Transformer Encoder** yang dilatih dari nol (*from scratch*) untuk pemahaman konteks global, sementara cabang spesifik ditambahkan di atasnya untuk mencegah entitas saling bertabrakan (*Task Interference*).
 
 ### 1. Shared Backbone: Transformer Encoder
-Membaca seluruh kalimat secara bersamaan dengan mekanisme *Multi-Head Attention*, menciptakan ringkasan pemahaman konteks yang sangat kaya.
+Membaca seluruh kalimat secara bersamaan dengan mekanisme *Multi-Head Attention* (Kapasitas: Embed 128, FFN 256), menciptakan ringkasan pemahaman konteks yang sangat kaya dari pesan pembeli.
 
 ### 2. Task-Specific Branches: Tiga Cabang Khusus
 
 | Cabang | Mekanisme | Deskripsi |
 | :--- | :--- | :--- |
-| **Product** | NER + CRF | Mengekstrak urutan kata (misal: `"nasi"` = `B-PROD`). CRF (*Conditional Random Field*) mencegah urutan *tag* yang tidak logis. |
-| **Quantity** | Dense Regresi | Layer khusus yang berfokus memprediksi angka kontinu positif. |
+| **Product** | BiLSTM + Dense (Softmax) | Mengekstrak urutan kata (misal: `"nasi"` = `B-PROD`). **Bidirectional LSTM** ditumpuk di atas Transformer khusus untuk menangkap pola urutan/sekuensial agar *tag* produk terbentuk dengan logis. |
+| **Quantity** | Dense Regresi | Layer khusus yang berfokus memprediksi angka kontinu positif (menggunakan *Global Average Pooling*). |
 | **Price** | Dense Regresi | Layer khusus yang berfokus memprediksi harga *satuan* (dinormalisasi ÷1000 saat training). |
 
 ---
@@ -187,6 +187,7 @@ Berbeda dengan model standar yang menggunakan fungsi otomatis `model.fit()`, Cha
 
 ### Mengapa Menggunakan tf.GradientTape?
 * **Kontrol Multi-Task:** Memungkinkan kita mengatur bagaimana *loss* dari cabang Produk, Jumlah, dan Harga digabungkan secara presisi sebelum memperbaiki bobot model.
+* **Padding Masking & Class Weighting:** Memungkinkan intervensi komputasi matriks tingkat rendah. Kita menerapkan "kacamata kuda" agar model mengabaikan token `[PAD]` (0), dan memberikan **hukuman 10x lipat (Class Weighting)** jika model gagal menebak kata produk untuk mengatasi masalah *Class Imbalance*.
 * **Dynamic Loss Weighting:** Mempermudah penerapan algoritma yang menyeimbangkan prioritas belajar antar cabang secara otomatis di setiap *epoch*.
 * **Efisiensi Masked Loss:** Memastikan fungsi `MaskedPriceLoss` terintegrasi sempurna dalam perhitungan gradien, sehingga model benar-benar mengabaikan data harga yang tidak valid (`-1`).
 
@@ -216,11 +217,14 @@ Karena sifat matematika dari setiap tugas berbeda, *loss function* yang digunaka
 
 | Cabang | Loss Function | Alasan |
 | :--- | :--- | :--- |
-| **Product** | Categorical Crossentropy / CRF Loss | Mengukur akurasi *sequence tagging* kata per kata. Keyakinan yang salah dihukum keras. |
+| **Product** | Sparse Categorical Crossentropy + Masking | Mengukur akurasi kata per kata. Dilengkapi *Class Weighting* untuk menghukum keras kesalahan pengenalan produk dan *Padding Masking* agar fokus pada kata asli. |
 | **Quantity** | Mean Absolute Error (MAE) | Sesuai dengan ketentuan target performa evaluasi tugas (MAE maksimal 0,02). |
 | **Price** | **MaskedPriceLoss (Custom)** | **Wajib dipertahankan.** Mengabaikan baris bernilai `-1` (harga tidak disebutkan di chat). Jika MSE standar dipakai, model akan belajar keliru menebak angka `-1`. |
 
-> **Optimasi Tambahan:** Diterapkan **Dynamic Loss Weighting** agar saat proses *training*, model memberikan porsi perhatian yang seimbang antara memprediksi Produk, Jumlah, dan Harga — tanpa ada cabang yang mendominasi.
+> **Optimasi Tambahan (3 Fase):** > Diterapkan **Dynamic Loss Weighting** dengan pendekatan *Curriculum Learning*. AI dilatih bertahap layaknya manusia agar fokusnya tidak pecah:
+> * **Fase 1:** Fokus penuh menghukum kesalahan Produk hingga akurasi mencapai ≥ 95%. Tugas Qty & Price diabaikan.
+> * **Fase 2:** Jika Produk lulus, fokus pindah untuk menekan *error* (MAE) Quantity hingga ≤ 0.02.
+> * **Fase 3:** Jika Produk dan Qty lulus, fokus penuh mengerahkan seluruh sisa *epoch* untuk meminimalkan *error* Price.
 
 ---
 
