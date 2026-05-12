@@ -1,0 +1,8 @@
+{
+    "vocab_size": 5000,
+    "max_length": 64,
+    "num_product_tags": 3,
+    "embed_dim": 128,
+    "num_heads": 4,
+    "ff_dim": 256
+}

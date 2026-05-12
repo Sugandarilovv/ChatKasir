@@ -22,7 +22,7 @@ export function useAuth() {
     setLoading(true)
     try {
       await register(nama, email, password)
-      showToast('Akun berhasil dibuat! Silakan login.', 'success')
+      showToast('Akun berhasil dibuat.', 'success')
       navigate('/login')
     } catch (err) {
       showToast(err.response?.data?.message || 'Gagal membuat akun.', 'error')

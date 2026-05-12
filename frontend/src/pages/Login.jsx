@@ -20,41 +20,45 @@ export default function Login() {
   function onSubmit(data) { handleLogin(data.email, data.password) }
 
   return (
-    <div className="min-h-screen flex bg-white font-sans">
+    // PERBAIKAN 1: Layout vertikal di HP, horizontal di laptop. 
+    // Background diubah dari putih menjadi gradient hijau ala Sidebar.
+    // min-h-dvh digunakan untuk memperbaiki peringatan linter.
+    <div className="flex flex-col lg:flex-row min-h-dvh bg-linear-to-b from-[#f0fff8] via-[#e8faf2] to-[#f0fdf9] font-sans w-full">
       
-      <div className="hidden lg:flex flex-col w-125 shrink-0 relative bg-green-950 overflow-hidden">
+      {/* PERBAIKAN 2: Class 'hidden' dihapus agar panel ini muncul di HP. Menggunakan xl:w-120 sesuai standar Tailwind */}
+      <div className="flex flex-col w-full lg:w-5/12 xl:w-120 shrink-0 relative bg-green-950 overflow-hidden shadow-xl z-10">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-green-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
 
-        <div className="relative z-10 flex flex-col h-full p-12">
-          {/* PERUBAHAN LOGO: Menggunakan elemen img */}
-          <div className="flex items-center gap-3 mb-auto">
+        <div className="relative z-10 flex flex-col h-full p-8 xl:p-12">
+          {/* LOGO: Sekarang posisinya menjadi Header di bagian atas saat di HP */}
+          <div className="flex items-center gap-3 mb-8 lg:mb-auto">
             <img 
               src={logoImg} 
               alt="Logo ChatKasir" 
-              className="w-12 h-12 rounded-full shadow-lg shadow-green-500/30 object-cover" 
+              className="w-10 h-10 rounded-lg shadow-lg shadow-green-500/30 object-contain" 
             />
             <span className="text-white font-extrabold text-2xl tracking-tight">ChatKasir.</span>
           </div>
 
-          <div className="mt-auto mb-12">
+          <div className="mb-8 lg:mt-auto lg:mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm mb-6">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
               <span className="text-green-50 text-xs font-semibold tracking-wide">Sistem Pintar UMKM</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
+            <h1 className="text-3xl xl:text-4xl font-extrabold text-white leading-tight mb-4">
               Kelola kasir <br />
               <span className="text-transparent bg-clip-text bg-linear-to-r from-green-300 to-emerald-200">tanpa ribet.</span>
             </h1>
-            <p className="text-green-100/80 text-base leading-relaxed max-w-sm">
+            <p className="text-green-100/80 text-sm xl:text-base leading-relaxed max-w-sm">
               Ubah chat pelanggan menjadi catatan transaksi akurat dalam hitungan detik menggunakan AI.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+          <div className="grid grid-cols-3 gap-2 xl:gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
-                <p className="text-white text-xl font-bold">{s.value}</p>
+                <p className="text-white text-lg xl:text-xl font-bold">{s.value}</p>
                 <p className="text-green-200/70 text-xs mt-1 font-medium">{s.label}</p>
               </div>
             ))}
@@ -62,21 +66,12 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-gray-50/50">
-        <div className="w-full max-w-md animate-fade-up">
+      {/* PERBAIKAN 3: Form Area diubah menjadi transparan agar background gradient utamanya bersinar */}
+      <div className="flex-1 flex flex-col justify-center p-6 sm:p-10 md:p-12 bg-transparent">
+        <div className="w-full max-w-md mx-auto my-4 lg:my-auto animate-fade-up">
           
-          {/* PERUBAHAN LOGO MOBILE */}
-          <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <img 
-              src={logoImg} 
-              alt="Logo ChatKasir" 
-              className="w-12 h-12 rounded-full shadow-md object-cover" 
-            />
-            <span className="font-extrabold text-gray-900 text-2xl">ChatKasir.</span>
-          </div>
-
           <div className="mb-6">
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Selamat Datang 👋</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Selamat Datang 👋</h2>
             <p className="text-gray-500 text-sm font-medium">Masuk untuk mengelola transaksi UMKM Anda.</p>
           </div>
 
@@ -84,7 +79,7 @@ export default function Login() {
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-gray-700">Email Akses</label>
               <input type="email" placeholder="contoh@umkm.com" autoComplete="email"
-                className={`w-full px-4 py-3 rounded-xl text-sm transition-all outline-none border ${errors.email ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' : 'border-gray-200 bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/10'}`}
+                className={`w-full px-4 py-3 rounded-xl text-sm transition-all outline-none border ${errors.email ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' : 'border-gray-200 bg-white/80 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/10'}`}
                 {...register('email', { required: 'Email wajib diisi', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Format tidak valid' } })} />
               {errors.email && <p className="text-red-500 text-xs font-medium pl-1">{errors.email.message}</p>}
             </div>
@@ -93,7 +88,7 @@ export default function Login() {
               <label className="text-sm font-semibold text-gray-700">Password</label>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password"
-                  className={`w-full pl-4 pr-12 py-3 rounded-xl text-sm transition-all outline-none border [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${errors.password ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' : 'border-gray-200 bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/10'}`}
+                  className={`w-full pl-4 pr-12 py-3 rounded-xl text-sm transition-all outline-none border [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${errors.password ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' : 'border-gray-200 bg-white/80 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/10'}`}
                   {...register('password', { required: 'Password wajib diisi' })} />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg focus:outline-none">
                   {showPass ? (
@@ -116,7 +111,7 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-4 pt-4 border-t border-gray-200 text-center space-y-2">
+          <div className="mt-6 pt-4 border-t border-gray-200/60 text-center space-y-2">
             <p className="text-gray-600 text-sm font-medium">
               Belum punya akun?{' '}
               <Link to="/register" className="text-green-600 font-bold hover:text-green-700 transition-colors">

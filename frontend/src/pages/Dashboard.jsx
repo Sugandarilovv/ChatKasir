@@ -1,26 +1,47 @@
-import { useState } from 'react'
+import { useState, forwardRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import MainLayout from '../components/layout/MainLayout'
 import SummaryCard from '../components/ui/SummaryCard'
 import LoadingSkeleton from '../components/ui/LoadingSkeleton'
 import EmptyState from '../components/ui/EmptyState'
 import { useTransactions } from '../hooks/useTransactions'
 import { formatRupiah } from '../utils/formatRupiah'
+import { useTheme } from '../context/ThemeContext' 
 
-function today() { return new Date().toISOString().split('T')[0] }
+function formatDateToYMD(dateObj) {
+  return dateObj.toISOString().split('T')[0]
+}
 
 function formatTanggal(str) {
-  return new Date(str).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(str).toLocaleDateString('id-ID', { 
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+  })
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [tanggal, setTanggal] = useState(today())
-  const { data, loading, error, refetch } = useTransactions(tanggal)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+  
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  
+  const tanggalString = formatDateToYMD(selectedDate)
+  const { data, loading, error } = useTransactions(tanggalString)
 
-  const totalNominal   = data.reduce((s, t) => s + t.jumlah * t.harga, 0)
-  const totalTranaksi  = data.length
-  const rataRata       = totalTranaksi > 0 ? Math.round(totalNominal / totalTranaksi) : 0
+  const totalNominal  = data.reduce((s, t) => s + t.jumlah * t.harga, 0)
+  const totalTranaksi = data.length
+  const rataRata      = totalTranaksi > 0 ? Math.round(totalNominal / totalTranaksi) : 0
+
+  const bgTable     = isDark ? '#1e293b' : '#ffffff' 
+  const bgHeader    = isDark ? '#0f172a' : '#f8fafc'
+  const borderColor = isDark ? '#334155' : '#e2e8f0'
+  const textUtama   = isDark ? '#f1f5f9' : '#1f2937'
+  const textMuda    = isDark ? '#94a3b8' : '#6b7280'
+  const textNomor   = isDark ? '#4ade80' : '#94a3b8' 
+
+  const gridCols = '8% 35% 15% 20% 22%'
 
   const cards = [
     { title: 'Total Pemasukan',       value: totalNominal,  type: 'rupiah', icon: '💰', delay: '' },
@@ -28,102 +49,164 @@ export default function Dashboard() {
     { title: 'Rata-rata per Pesanan', value: rataRata,      type: 'rupiah', icon: '📈', delay: 'delay-2' },
   ]
 
+  const CustomInput = forwardRef(({ value, onClick }, ref) => (
+    <button 
+      ref={ref}
+      onClick={onClick}
+      className="px-1.5 py-1 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl border font-semibold outline-none focus:ring-2 focus:ring-green-500 transition-all flex items-center gap-1 sm:gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 text-[10px] sm:text-sm whitespace-nowrap"
+      style={{ background: bgTable, borderColor: borderColor, color: textUtama }}
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <span>{value}</span>
+    </button>
+  ));
+
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-up">
+      <style>{`
+        .react-datepicker {
+          font-family: inherit;
+          border-radius: 1rem;
+          border: 1px solid ${borderColor};
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+          font-size: 0.9rem;
+        }
+        .react-datepicker__header { border-bottom: 1px solid ${borderColor}; padding-top: 12px; }
+        .react-datepicker__navigation { top: 14px; }
+        .react-datepicker__day--selected, .react-datepicker__day--keyboard-selected {
+          background-color: #16a34a !important; color: white !important; border-radius: 0.5rem; font-weight: bold;
+        }
+        .react-datepicker__day:hover { border-radius: 0.5rem; }
+        .react-datepicker__year-dropdown, .react-datepicker__month-dropdown {
+          border-radius: 0.75rem; padding: 8px 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .react-datepicker__year-option, .react-datepicker__month-option {
+          padding: 6px 12px; transition: background-color 0.2s;
+        }
+        
+        /* PERBAIKAN: Mengecilkan ukuran popup kalender secara agresif di layar HP */
+        @media (max-width: 640px) {
+          .react-datepicker { font-size: 0.65rem; }
+          .react-datepicker__month-container { width: 190px; }
+          .react-datepicker__day-name, .react-datepicker__day { width: 1.25rem; line-height: 1.25rem; margin: 0.1rem; }
+          .react-datepicker__header { padding-top: 8px; }
+          .react-datepicker__navigation { top: 8px; }
+          .react-datepicker__current-month { font-size: 0.8rem; margin-bottom: 4px; }
+        }
 
-        {/* Header */}
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold text-gray-900">Dashboard</h2>
-            <p className="text-gray-400 text-sm mt-0.5">{formatTanggal(tanggal)}</p>
+        .dark-calendar .react-datepicker { background-color: #1e293b; color: #f1f5f9; }
+        .dark-calendar .react-datepicker__header { background-color: #0f172a; }
+        .dark-calendar .react-datepicker__current-month, .dark-calendar .react-datepicker-time__header,
+        .dark-calendar .react-datepicker-year-header, .dark-calendar .react-datepicker__day-name { color: #e2e8f0; font-weight: 600; }
+        .dark-calendar .react-datepicker__day { color: #cbd5e1; }
+        .dark-calendar .react-datepicker__day:hover { background-color: #334155; }
+        .dark-calendar .react-datepicker__day--disabled { color: #475569; }
+        .dark-calendar .react-datepicker__navigation-icon::before { border-color: #cbd5e1; }
+        .dark-calendar .react-datepicker__year-dropdown, .dark-calendar .react-datepicker__month-dropdown { background-color: #1e293b; border: 1px solid #334155; }
+        .dark-calendar .react-datepicker__year-option:hover, .dark-calendar .react-datepicker__month-option:hover { background-color: #334155; }
+        .dark-calendar .react-datepicker__year-option--selected_year { color: #4ade80; font-weight: bold; }
+      `}</style>
+
+      <div className="space-y-10 sm:space-y-6 animate-fade-up">
+        
+        <div className="flex flex-row items-center justify-between gap-1 sm:gap-4 w-full">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-2xl font-extrabold truncate" style={{ color: textUtama }}>Dashboard Harian</h2>
+            <p className="text-[9px] sm:text-sm mt-0.5 truncate" style={{ color: textMuda }}>{formatTanggal(tanggalString)}</p>
           </div>
-          <div className="flex gap-2 items-center">
-            {/* PERBAIKAN: Rentang tanggal diubah menjadi 2020 hingga 2045 */}
-            <input 
-              type="date" 
-              min="2020-01-01" 
-              max="2045-12-31" 
-              value={tanggal}
-              onChange={(e) => setTanggal(e.target.value)}
-              className="px-3 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all bg-white"
-              style={{ borderColor: '#e2e8f0' }} 
-            />
+          
+          <div className="flex gap-1 sm:gap-2 items-center relative z-40 shrink-0">
+            <div className={isDark ? 'dark-calendar' : ''}>
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                minDate={new Date('2020-01-01')}
+                maxDate={new Date('2045-12-31')}
+                dateFormat="dd/MM/yyyy"
+                showYearDropdown
+                scrollableYearDropdown
+                yearDropdownItemNumber={50}
+                customInput={<CustomInput />}
+              />
+            </div>
+
             <button onClick={() => navigate('/input')}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+              className="px-2 py-1 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold text-white transition-all active:scale-95 flex items-center gap-1 shadow-sm hover:shadow-md whitespace-nowrap"
               style={{ background: '#16a34a' }}>
-              + Catat
+              <span className="text-xs sm:text-lg leading-none">+</span> 
+              <span>Catat</span>
             </button>
           </div>
         </div>
 
-        {/* Kartu ringkasan */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {cards.map((c) => (
-            <div key={c.title} className={`animate-fade-up ${c.delay}`}>
-              <SummaryCard title={c.title} value={c.value} type={c.type} icon={c.icon} loading={loading} />
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 relative z-10">
+          {cards.map((c, i) => (
+            <div key={i} className={`animate-fade-up ${c.delay} h-full`}>
+              <SummaryCard {...c} loading={loading} />
             </div>
           ))}
         </div>
 
-        {/* Tabel */}
-        <div className="rounded-2xl overflow-hidden animate-fade-up delay-3"
-          style={{ border: '1px solid #e2e8f0', boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
-
-          <div className="flex items-center justify-between px-5 py-4 bg-white border-b" style={{ borderColor: '#f1f5f9' }}>
-            <h3 className="font-bold text-gray-800">Daftar Transaksi</h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: loading ? '#f1f5f9' : totalTranaksi > 0 ? '#dcfce7' : '#f1f5f9', color: totalTranaksi > 0 ? '#15803d' : '#94a3b8' }}>
-              {loading ? '...' : `${totalTranaksi} item`}
-            </span>
+        <div className="mt-12 sm:mt-13 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm animate-fade-up delay-3 relative z-10" 
+          style={{ border: `1px solid ${borderColor}`, background: bgTable }}>
+          
+          <div className="px-2 sm:px-6 py-2 sm:py-4 border-b" style={{ borderColor: borderColor, background: bgHeader }}>
+            <h3 className="text-[10px] sm:text-base font-bold" style={{ color: textUtama }}>Detail Transaksi Hari Ini</h3>
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="flex items-center justify-between px-5 py-3 bg-red-50 border-b border-red-100">
-              <span className="text-sm text-red-600">{error}</span>
-              <button onClick={refetch} className="text-xs font-semibold text-red-600 underline">Coba lagi</button>
+          <div className="overflow-hidden w-full">
+            <div className="grid text-[8px] sm:text-xs font-bold uppercase tracking-widest px-2 sm:px-6 py-2 sm:py-3 border-b w-full"
+              style={{ gridTemplateColumns: gridCols, borderColor: borderColor, color: textMuda, background: bgHeader }}>
+              <span className="text-center truncate">No</span>
+              <span className="truncate">Produk</span>
+              <span className="text-center truncate">Jml</span>
+              <span className="text-right pr-1 sm:pr-2 truncate">Harga</span>
+              <span className="text-right truncate">Subtotal</span>
             </div>
-          )}
 
-          {loading && <div className="p-5"><LoadingSkeleton rows={4} /></div>}
-
-          {!loading && !error && data.length === 0 && (
-            <div className="bg-white">
-              <EmptyState message="Belum ada transaksi hari ini. Yuk mulai catat!"
-                action={{ label: '+ Catat Sekarang', onClick: () => navigate('/input') }} />
-            </div>
-          )}
-
-          {!loading && !error && data.length > 0 && (
-            <>
-              {/* Header row */}
-              <div className="grid text-xs font-semibold text-gray-400 uppercase tracking-widest px-5 py-2.5"
-                style={{ gridTemplateColumns: '32px 1fr 60px 120px 130px', background: '#fafffe', borderBottom: '1px solid #f0fdf4' }}>
-                <span>#</span><span>Produk</span><span className="text-center">Jml</span>
-                <span className="text-right">Harga</span><span className="text-right">Subtotal</span>
-              </div>
-              <div className="bg-white divide-y" style={{ divideColor: '#f8fafc' }}>
+            {loading ? (
+              <div className="p-2 sm:p-6"><LoadingSkeleton count={3} /></div>
+            ) : error ? (
+              <div className="p-4 sm:p-10 text-center text-red-500 text-[10px] sm:text-base font-medium">Gagal memuat data.</div>
+            ) : data.length === 0 ? (
+              <EmptyState message="Belum ada transaksi di tanggal ini." />
+            ) : (
+              <div className="divide-y w-full" style={{ borderColor: borderColor }}>
                 {data.map((t, i) => (
                   <div key={t.id || i}
-                    className="grid items-center px-5 py-3.5 hover:bg-green-50/30 transition-colors"
-                    style={{ gridTemplateColumns: '32px 1fr 60px 120px 130px' }}>
-                    <span className="text-xs font-bold text-gray-300">{i + 1}</span>
-                    <span className="font-semibold text-gray-800 text-sm">{t.nama_produk}</span>
-                    <span className="text-center text-sm text-gray-500">{t.jumlah}</span>
-                    <span className="text-right text-sm text-gray-500">{formatRupiah(t.harga)}</span>
-                    <span className="text-right text-sm font-bold" style={{ color: '#16a34a' }}>{formatRupiah(t.jumlah * t.harga)}</span>
+                    className="grid items-center px-2 sm:px-6 py-2 sm:py-4 transition-colors hover:bg-green-500/5 group w-full"
+                    style={{ gridTemplateColumns: gridCols }}>
+                    
+                    <span className="text-center text-[9px] sm:text-sm font-extrabold" style={{ color: textNomor }}>{i + 1}</span>
+                    <span className="font-bold text-[9px] sm:text-sm truncate pr-1" style={{ color: textUtama }} title={t.nama_produk}>{t.nama_produk}</span>
+                    <span className="text-center text-[9px] sm:text-sm font-medium" style={{ color: textMuda }}>{t.jumlah}</span>
+                    <span className="text-right text-[9px] sm:text-sm font-medium pr-1 sm:pr-2 truncate" style={{ color: textMuda }}>{formatRupiah(t.harga)}</span>
+                    <span className="text-right text-[9px] sm:text-sm font-extrabold truncate" style={{ color: '#16a34a' }}>
+                      {formatRupiah(t.jumlah * t.harga)}
+                    </span>
                   </div>
                 ))}
               </div>
-              {/* Total footer */}
-              <div className="flex items-center justify-between px-5 py-3 border-t" style={{ borderColor: '#f0fdf4', background: '#fafffe' }}>
-                <span className="text-sm font-semibold text-gray-400">Total {totalTranaksi} item</span>
-                <span className="text-lg font-extrabold" style={{ color: '#15803d' }}>{formatRupiah(totalNominal)}</span>
+            )}
+          </div>
+
+          {!loading && data.length > 0 && (
+            <div className="px-3 sm:px-6 py-2 sm:py-4 border-t flex flex-row justify-between items-center w-full" 
+              style={{ borderColor: borderColor, background: bgHeader }}>
+              <span className="text-[9px] sm:text-sm font-bold" style={{ color: textMuda }}>Total: {totalTranaksi}</span>
+              <div className="flex items-center gap-1 sm:gap-4">
+                <span className="text-[9px] sm:text-sm font-bold" style={{ color: textMuda }}>Pemasukan:</span>
+                <span className="text-[11px] sm:text-xl font-black" style={{ color: isDark ? '#4ade80' : '#15803d' }}>
+                  {formatRupiah(totalNominal)}
+                </span>
               </div>
-            </>
+            </div>
           )}
         </div>
+
       </div>
     </MainLayout>
   )

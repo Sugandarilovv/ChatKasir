@@ -113,59 +113,54 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
 
   return (
     <div style={{
-      borderRadius: 20, overflow: 'hidden',
+      borderRadius: 16, overflow: 'hidden',
       border: `1px solid ${isDark ? '#334155' : '#a7f3d0'}`,
     }}>
-      {/* ── Header ── */}
-      <div style={{ background: headGrad, padding: '16px 20px 12px' }}>
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-          <p style={{ fontSize: 16, fontWeight: 900, color: txt, letterSpacing: '-0.3px' }}>
+      <div style={{ background: headGrad }} className="px-3 py-3 sm:px-5 sm:py-4">
+        
+        {/* HEADER GRAFIK DIPERBAIKI: Fleksibel, menyatu di HP agar tidak turun ke bawah bertumpuk */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3 w-full">
+          <p className="text-[13px] sm:text-base font-black shrink-0" style={{ color: txt, letterSpacing: '-0.3px' }}>
             PEMASUKAN HARIAN
           </p>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Periode */}
-            <div style={{
+          <div className="flex flex-row items-center justify-between gap-2 w-full md:w-auto overflow-hidden">
+            {/* Box Periode */}
+            <div className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border truncate" style={{
               background: isDark ? 'rgba(30,41,59,0.8)' : 'rgba(255,255,255,0.85)',
-              border: `1px solid ${isDark ? '#475569' : '#6ee7b7'}`,
-              borderRadius: 10, padding: '5px 12px',
-              display: 'flex', alignItems: 'center', gap: 7,
+              borderColor: isDark ? '#475569' : '#6ee7b7'
             }}>
-              <span style={{ fontSize: 13 }}>📅</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: txt }}>
-                PERIODE: <strong>{startDay} – {endDay} {blnLabel} {tahun}</strong>
+              <span className="text-[11px] sm:text-sm shrink-0">📅</span>
+              <span className="text-[9px] sm:text-xs font-bold truncate" style={{ color: txt }}>
+                <span className="hidden sm:inline">PERIODE: </span>
+                <strong>{startDay} – {endDay} {blnLabel} {tahun}</strong>
               </span>
             </div>
 
-            {/* Navigasi */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 onClick={() => setOffset(o => Math.max(0, o - PAGE_SIZE))}
                 disabled={offset === 0}
+                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border-[1.5px] text-base sm:text-lg font-black transition-all"
                 style={{
-                  width: 34, height: 34, borderRadius: 10,
                   background: isDark ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.8)',
-                  border: `1.5px solid ${isDark ? '#334155' : '#6ee7b7'}`,
+                  borderColor: isDark ? '#334155' : '#6ee7b7',
                   color: offset === 0 ? (isDark ? '#475569' : '#a7f3d0') : (isDark ? '#4ade80' : '#065f46'),
-                  fontSize: 18, fontWeight: 900,
                   cursor: offset === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >‹</button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }).map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setOffset(i * PAGE_SIZE)}
+                    className="h-1.5 sm:h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: currentPage === i ? 22 : 8,
-                      height: 8, borderRadius: 99,
-                      background: currentPage === i
-                        ? (isDark ? '#4ade80' : '#10b981')
-                        : (isDark ? '#334155' : '#a7f3d0'),
+                      width: currentPage === i ? 16 : 6,
+                      background: currentPage === i ? (isDark ? '#4ade80' : '#10b981') : (isDark ? '#334155' : '#a7f3d0'),
                       border: 'none', cursor: 'pointer', padding: 0,
-                      transition: 'all 0.25s ease',
                     }}
                   />
                 ))}
@@ -174,35 +169,29 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               <button
                 onClick={() => { if (offset + PAGE_SIZE < data.length) setOffset(o => o + PAGE_SIZE) }}
                 disabled={offset + PAGE_SIZE >= data.length}
+                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border-[1.5px] text-base sm:text-lg font-black transition-all"
                 style={{
-                  width: 34, height: 34, borderRadius: 10,
                   background: isDark ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.8)',
-                  border: `1.5px solid ${isDark ? '#334155' : '#6ee7b7'}`,
-                  color: offset + PAGE_SIZE >= data.length
-                    ? (isDark ? '#475569' : '#a7f3d0')
-                    : (isDark ? '#4ade80' : '#065f46'),
-                  fontSize: 18, fontWeight: 900,
+                  borderColor: isDark ? '#334155' : '#6ee7b7',
+                  color: offset + PAGE_SIZE >= data.length ? (isDark ? '#475569' : '#a7f3d0') : (isDark ? '#4ade80' : '#065f46'),
                   cursor: offset + PAGE_SIZE >= data.length ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >›</button>
             </div>
           </div>
         </div>
 
-        {/* Total (Rata-rata Harian Dihapus) */}
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: txtMut }}>
+        <div>
+          <span className="text-[10px] sm:text-xs font-bold" style={{ color: txtMut }}>
             TOTAL {visibleData.length} HARI INI:{' '}
             <strong style={{ color: isDark ? '#4ade80' : '#065f46' }}>{fmtRing(totalPg)}</strong>
           </span>
         </div>
       </div>
 
-      {/* ── Area chart ── */}
-      <div style={{ background: cardBg, padding: '20px 8px 16px' }}>
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={visibleData} margin={{ top: 16, right: 16, left: 4, bottom: 8 }}>
+      <div style={{ background: cardBg }} className="p-2 sm:p-5">
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={visibleData} margin={{ top: 16, right: 10, left: -15, bottom: 8 }}>
             <defs>
               <linearGradient id="areaLight" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor="#10b981" stopOpacity={0.35}/>
@@ -222,17 +211,15 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               dataKey="tanggal"
               tickLine={false}
               axisLine={false}
-              height={48}
+              height={40}
               tick={({ x, y, payload }) => {
                 const d = visibleData.find(v => v.tanggal === payload.value)
                 return (
                   <g transform={`translate(${x},${y})`}>
-                    <text x={0} y={12} textAnchor="middle"
-                      fill={axisColor} fontSize={12} fontWeight={600}>
+                    <text x={0} y={10} textAnchor="middle" fill={axisColor} fontSize={10} fontWeight={600}>
                       {payload.value} {BLN_SHORT[bulan - 1]}
                     </text>
-                    <text x={0} y={26} textAnchor="middle"
-                      fill={isDark ? '#4ade80' : '#10b981'} fontSize={10} fontWeight={800}>
+                    <text x={0} y={22} textAnchor="middle" fill={isDark ? '#4ade80' : '#10b981'} fontSize={9} fontWeight={800}>
                       ({d?.hari || ''})
                     </text>
                   </g>
@@ -242,8 +229,8 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
 
             <YAxis
               tickFormatter={fmt}
-              tick={{ fontSize: 11, fill: axisColor, fontWeight: 500 }}
-              tickLine={false} axisLine={false} width={44}
+              tick={{ fontSize: 10, fill: axisColor, fontWeight: 600 }}
+              tickLine={false} axisLine={false} width={40}
             />
 
             <Tooltip
@@ -257,8 +244,11 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               stroke={isDark ? '#4ade80' : '#10b981'}
               strokeWidth={3}
               fill={`url(#${isDark ? 'areaDark' : 'areaLight'})`}
-              dot={(props) => <CustomDot {...props} maxVal={maxVal} isDark={isDark} />}
-              activeDot={{ r: 7, fill: isDark ? '#4ade80' : '#10b981', stroke: isDark ? '#0f172a' : '#fff', strokeWidth: 3 }}
+              dot={(props) => {
+                const { key, ...restProps } = props;
+                return <CustomDot key={key} {...restProps} maxVal={maxVal} isDark={isDark} />;
+              }}
+              activeDot={{ r: 6, fill: isDark ? '#4ade80' : '#10b981', stroke: isDark ? '#0f172a' : '#fff', strokeWidth: 3 }}
             />
           </AreaChart>
         </ResponsiveContainer>
