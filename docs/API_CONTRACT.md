@@ -1,38 +1,17 @@
 # API Contract — ChatKasir
 
-**Version**: 1.1.0
-**Tanggal**: 26 April 2026
+**Version**: 1.2.0
+**Tanggal**: 4 Mei 2026
 **Disusun oleh**: FS-2 (Reihan) & AI-2 (Denny)
-**Changelog**: v1.1.0 — Refactor skema database (issue #24 by Rifan): rename `price` → `price_satuan`, tambah field `total`, `confidence`, `is_manual` di transactions; update tabel users pakai Supabase Auth.
-
----
-
-## Gambaran Alur Kerja
-
-Ini urutan kerja antar bagian di ChatKasir:
-
-```
-PENJUAL
-  ↓ copy-paste teks chat WhatsApp
-FRONTEND — Alfan (FS-1)
-  ↓ kirim teks ke backend
-BACKEND — Reihan (FS-2)      ←→     DATABASE Supabase
-  ↓ forward teks ke AI
-AI API — Denny (AI-2)
-  ↓ kembalikan hasil ekstraksi
-BACKEND — Reihan (FS-2)
-  ↓ simpan ke database, kirim response
-FRONTEND — Alfan (FS-1)
-  ↓ tampilkan ke penjual
-PENJUAL 🎉
-```
+**Changelog**: v1.2.0 — Penambahan endpoint GET /report/monthly dan sinkronisasi field /predict (kembali ke product_name sesuai kesepakatan tim AI).
 
 ---
 
 ## A. Endpoint Milik Backend FS-2
 
-> Base URL: `http://localhost:3000`
-> Semua endpoint kecuali Auth menggunakan header: `Authorization: Bearer <token>`
+Base URL: `http://localhost:3000`
+
+Semua endpoint kecuali Auth menggunakan header: `Authorization: Bearer <token>`
 
 ---
 
@@ -96,13 +75,14 @@ Response sukses `200`:
 
 ---
 
-### 3. Kirim Teks Chat (Endpoint Utama)
+### 3. Create Transaction
 
 **`POST /transactions`**
 
-Ini endpoint paling penting. Penjual paste teks chat, frontend kirim ke sini, lalu backend akan otomatis minta AI untuk mengekstrak datanya, dan menyimpan hasilnya ke database.
+Menerima teks mentah dari frontend, meneruskannya ke AI, lalu menyimpan hasilnya ke
+database.
 
-Request:
+Request Body:
 
 ```json
 {
@@ -174,13 +154,19 @@ Response `200`:
 
 ```json
 {
-  "month": "April 2026",
-  "total_revenue": 250000,
-  "daily": [
+  "message": "Laporan bulanan berhasil diambil",
+  "period": "5-2026",
+  "summary": {
+    "total_revenue": 1500000,
+    "total_items_sold": 45,
+    "total_transactions": 20
+  },
+  "data": [
     {
-      "date": "2026-04-23",
-      "revenue": 45000,
-      "total_transactions": 3
+      "product_name": "nasi goreng",
+      "quantity": 2,
+      "total": 30000,
+      "transaction_date": "2026-05-04"
     }
   ]
 }
@@ -190,7 +176,7 @@ Response `200`:
 
 ## B. Endpoint Milik AI-2 (Denny)
 
-> Base URL: `http://localhost:8000`
+> Base URL: `https://<ai-api-host>/`
 > Semua endpoint menggunakan header: `X-API-Key: <api-key>`
 > API key disimpan di file `.env` backend FS-2, tidak boleh di-push ke GitHub.
 
@@ -228,34 +214,20 @@ Request:
 }
 ```
 
-Response sukses `200`:
+**Response `200 OK`**
 
 ```json
 {
   "status": "success",
-  "predictions": [
+  "results": [
     {
-      "product_name": "nasi goreng",
+      "product": "nasi goreng",
       "quantity": 2,
-      "price_satuan": 15000,
+      "price_satuan": 10000,
+      "total": 20000,
       "confidence": "HIGH"
-    },
-    {
-      "product_name": "es teh",
-      "quantity": 3,
-      "price_satuan": 5000,
-      "confidence": "MEDIUM"
     }
   ]
-}
-```
-
-Response gagal `200`:
-
-```json
-{
-  "status": "failed",
-  "predictions": []
 }
 ```
 
@@ -275,12 +247,12 @@ Response gagal `200`:
 
 ---
 
-## D. Catatan Penting untuk Integrasi
-
-**FS-2 (Reihan):** Sebelum memanggil `/predict`, harus manggil `/health` dulu untuk memastikan model sudah loaded.
-
-**AI-2 (Denny):** Endpoint `/predict` perlu diubah agar menerima `{ "text": "..." }` bukan array of numbers. Output harus berupa array of objects dengan field `product_name`, `quantity`, `price_satuan`, dan `confidence` (`"HIGH"`, `"MEDIUM"`, `"LOW"`).
+## D. Catatan
 
 **Disepakati bersama:** Jika AI gagal mengekstrak (predictions kosong), backend akan menyimpan `chat_extractions` dengan status `"failed"` dan tidak membuat record di tabel `transactions`. Nilai valid untuk kolom `status` di `chat_extractions` adalah: `"pending"`, `"processed"`, `"failed"`.
 
 **Supabase Auth:** Register dan login menggunakan Supabase Auth bawaan — token JWT dihandle otomatis oleh Supabase. Frontend (FS-1) menyimpan token dan mengirimkannya di header setiap request ke backend.
+
+**Field product_name:** Berdasarkan diskusi tanggal 4 Mei, tim AI (Denny/Rifan) setuju untuk mengubah output model/API dari product menjadi product_name agar konsisten dengan database backend.
+
+**Field status:** Denny (AI-2) akan menambahkan root field status di response /predict.
