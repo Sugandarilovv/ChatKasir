@@ -134,11 +134,14 @@ Model menerima susunan *token* di atas, memprosesnya melalui arsitektur *Transfo
 
 Tahap ini mengubah output mesin yang mentah menjadi informasi yang siap dikonsumsi oleh sistem kasir. AI-2 mengambil matriks probabilitas dari model, melakukan ekstraksi teks, dan membungkusnya ke dalam kontrak API yang telah disepakati.
 
-Proses yang dilakukan:
-- Ekstraksi Entitas: Mengubah tag NER kembali menjadi teks utuh (misal: B-PROD + I-PROD → "nasi goreng").
-- Kalkulasi Confidence: Menghitung rata-rata nilai probabilitas (softmax) pada token produk untuk menentukan label "HIGH", "MEDIUM", atau "LOW".
-- Denormalisasi & Pembulatan: Mengalikan nilai harga dengan 1000 dan membulatkan angka desimal pada kuantitas.
-- Final Formatting: Menyusun hasil ke dalam array results dan menyertakan teks yang telah dibersihkan ke dalam clean_text.
+**Proses yang dilakukan:**
+* **Ekstraksi Entitas:** Mengubah *tag* NER kembali menjadi teks utuh (misal: `B-PROD` + `I-PROD` → `"nasi goreng"`).
+* **Denormalisasi & Pembulatan:** Mengalikan nilai harga mentah dengan 1000, lalu membulatkannya ke **kelipatan Rp500 terdekat** (menyesuaikan pecahan mata uang). Kuantitas dibulatkan ke bilangan bulat (Integer).
+* **Kalkulasi Confidence (Hybrid/Double Validation):** 1. Sistem mengekstrak total harga dari teks *chat* menggunakan Regex pintar (mendeteksi kata "total", "jadi", atau "semua").
+  2. Jika total di *chat* **cocok** dengan hasil perkalian prediksi, *Confidence* otomatis menjadi **"HIGH"** (*Business Override* mengabaikan keraguan model).
+  3. Jika total di *chat* **tidak cocok**, *Confidence* otomatis menjadi **"LOW"**.
+  4. Jika *chat* **tidak menyebutkan total**, *Confidence* murni diambil dari probabilitas rata-rata Softmax model: `"HIGH"` (≥90%), `"MEDIUM"` (70-89%), atau `"LOW"` (<70%).
+* **Final Formatting:** Menyusun hasil ke dalam *array* `results` dan menyertakan teks yang telah dibersihkan ke dalam `clean_text`.
 
 ```json
 {
@@ -259,8 +262,9 @@ Sesuai kesepakatan, *output* akhir dari *pipeline inference* akan disajikan dala
 
 ```
 
-PANDUAN IMPLEMENTASI UNTUK AI-2 (DENNY):
-
-1. Struktur List: Pastikan output selalu berada di dalam array results untuk menjaga konsistensi jika nantinya sistem ditingkatkan ke multi-entity extraction.
-2. Clean Text: Sertakan teks asli yang sudah dibersihkan dari timestamp ke dalam key clean_text untuk keperluan audit atau debugging di sisi aplikasi.
-3. Confidence Level: Skor keyakinan diekstraksi dari rata-rata probabilitas token produk; HIGH (≥90%), MEDIUM (70-89%), atau LOW (<70%).
+> **Panduan Implementasi untuk AI-2 (DENNY):**
+> 1. **Struktur List:** Pastikan *output* selalu berada di dalam *array* `results` untuk menjaga konsistensi jika nantinya sistem ditingkatkan ke *multi-entity extraction*.
+> 2. **Clean Text:** Sertakan teks asli yang sudah dibersihkan ke dalam *key* `clean_text` untuk keperluan audit regex.
+> 3. **Smart Regex & Double Validation:** Wajib menggunakan pola regex `(?:total|jadi|semua)(?:nya)?\s*(\d+)\s*(rb|ribu|k)?` untuk mengekstrak total dari *chat*. Gunakan logika *Business Override*: jika total cocok, *confidence* paksa menjadi `"HIGH"`. Jika tidak cocok menjadi `"LOW"`. Gunakan rata-rata Softmax hanya jika regex tidak menemukan kata total.
+> 4. **Pembulatan 500:** Nilai `price_satuan` mentah wajib dikalikan 1000, lalu dibulatkan menggunakan rumus `/ 500.0 * 500` sebelum dikalikan dengan `quantity`.
+> 5. **Reference Logic:** Skrip utuh untuk logika ekstraksi cerdas ini sudah dirampungkan di `notebooks/03_evaluation.ipynb` Tahap 4 sebagai acuan *copy-paste* ke *Class* API.
