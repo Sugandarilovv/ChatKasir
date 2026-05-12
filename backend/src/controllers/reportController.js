@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabase } = require("../config/supabase");
 
 // GET /report/monthly
 const getMonthlyReport = async (req, res) => {
@@ -14,7 +14,7 @@ const getMonthlyReport = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("transactions")
-      .select("product, quantity, total, transaction_date")
+      .select("product_name, quantity, total, transaction_date")
       .eq("user_id", user_id)
       .gte("transaction_date", startDate)
       .lte("transaction_date", endDate);

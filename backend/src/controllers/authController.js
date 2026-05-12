@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabase, supabaseAuth } = require("../config/supabase");
 const { validationResult } = require("express-validator");
 
 const register = async (req, res) => {
@@ -10,7 +10,7 @@ const register = async (req, res) => {
 
   const { email, password, full_name } = req.body;
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await supabaseAuth.auth.signUp({
     email,
     password,
     options: { data: { full_name } },
@@ -32,7 +32,7 @@ const register = async (req, res) => {
 const verifyOtp = async (req, res) => {
   const { email, token } = req.body; // Token itu kode OTP 6 digit
 
-  const { data, error } = await supabase.auth.verifyOtp({
+  const { data, error } = await supabaseAuth.auth.verifyOtp({
     email,
     token,
     type: "signup",
@@ -54,7 +54,7 @@ const login = async (req, res) => {
     });
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabaseAuth.auth.signInWithPassword({
     email,
     password,
   });

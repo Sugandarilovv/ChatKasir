@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabase } = require("../config/supabase");
 
 const updateProfile = async (req, res) => {
   const userId = req.user.id; // Ambil dari middleware auth
@@ -14,8 +14,4 @@ const updateProfile = async (req, res) => {
   return res.status(200).json({ message: "Profil berhasil diperbarui", data });
 };
 
-module.exports = {
-  register,
-  login,
-  verifyOtp,
-};
+module.exports = { updateProfile };
