@@ -132,15 +132,26 @@ Model menerima susunan *token* di atas, memprosesnya melalui arsitektur *Transfo
 ### [4] Postprocessing
 **Penanggung Jawab:** AI-2 Denny
 
-Menerjemahkan *tag* NER kembali menjadi teks utuh (`"nasi goreng"`), membulatkan angka desimal, menghitung total prediksi (`quantity × price_satuan`), lalu memverifikasinya dengan teks total di chat asli.
+Tahap ini mengubah output mesin yang mentah menjadi informasi yang siap dikonsumsi oleh sistem kasir. AI-2 mengambil matriks probabilitas dari model, melakukan ekstraksi teks, dan membungkusnya ke dalam kontrak API yang telah disepakati.
+
+Proses yang dilakukan:
+- Ekstraksi Entitas: Mengubah tag NER kembali menjadi teks utuh (misal: B-PROD + I-PROD → "nasi goreng").
+- Kalkulasi Confidence: Menghitung rata-rata nilai probabilitas (softmax) pada token produk untuk menentukan label "HIGH", "MEDIUM", atau "LOW".
+- Denormalisasi & Pembulatan: Mengalikan nilai harga dengan 1000 dan membulatkan angka desimal pada kuantitas.
+- Final Formatting: Menyusun hasil ke dalam array results dan menyertakan teks yang telah dibersihkan ke dalam clean_text.
 
 ```json
 {
-  "product": "nasi goreng",
-  "quantity": 2,
-  "price_satuan": 10000,
-  "total": 20000,
-  "confidence": "HIGH"
+  "results": [
+    {
+      "product": "nasi goreng",
+      "quantity": 2,
+      "price_satuan": 10000,
+      "total": 20000,
+      "confidence": "HIGH"
+    }
+  ],
+  "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
 }
 ```
 
@@ -221,23 +232,35 @@ Karena sifat matematika dari setiap tugas berbeda, *loss function* yang digunaka
 | **Quantity** | Mean Absolute Error (MAE) | Sesuai dengan ketentuan target performa evaluasi tugas (MAE maksimal 0,02). |
 | **Price** | **MaskedPriceLoss (Custom)** | **Wajib dipertahankan.** Mengabaikan baris bernilai `-1` (harga tidak disebutkan di chat). Jika MSE standar dipakai, model akan belajar keliru menebak angka `-1`. |
 
-> **Optimasi Tambahan (3 Fase):** > Diterapkan **Dynamic Loss Weighting** dengan pendekatan *Curriculum Learning*. AI dilatih bertahap layaknya manusia agar fokusnya tidak pecah:
+> **Optimasi Tambahan (3 Fase):** Diterapkan **Dynamic Loss Weighting** dengan pendekatan *Curriculum Learning*. AI dilatih bertahap layaknya manusia agar fokusnya tidak pecah:
 > * **Fase 1:** Fokus penuh menghukum kesalahan Produk hingga akurasi mencapai ≥ 95%. Tugas Qty & Price diabaikan.
 > * **Fase 2:** Jika Produk lulus, fokus pindah untuk menekan *error* (MAE) Quantity hingga ≤ 0.02.
 > * **Fase 3:** Jika Produk dan Qty lulus, fokus penuh mengerahkan seluruh sisa *epoch* untuk meminimalkan *error* Price.
 
 ---
 
-## Format Kontrak Data: Model ke API
+## Format Kontrak Data: Model ke API (Handover ke AI-2)
 
-Output model final (sebelum masuk tahap postprocessing AI-2):
+Sesuai kesepakatan, *output* akhir dari *pipeline inference* akan disajikan dalam format JSON terstruktur yang mendukung *multi-result* (meskipun saat ini model memproses satu per satu).
 
 ```json
 {
-  "product_tags": ["B-PROD", "I-PROD", "O", "O"],
-  "quantity": 1.98,
-  "price_satuan": 10000.45
+  "results": [
+    {
+      "product": "nasi goreng",
+      "quantity": 2,
+      "price_satuan": 10000,
+      "total": 20000,
+      "confidence": "HIGH"
+    }
+  ],
+  "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
 }
+
 ```
 
-> **Catatan untuk AI-2 (Denny):** Konversi `product_tags` kembali menjadi string utuh, dan lakukan pembulatan integer pada `quantity` serta `price_satuan` saat memformulasikan response akhir ke Backend.
+PANDUAN IMPLEMENTASI UNTUK AI-2 (DENNY):
+
+1. Struktur List: Pastikan output selalu berada di dalam array results untuk menjaga konsistensi jika nantinya sistem ditingkatkan ke multi-entity extraction.
+2. Clean Text: Sertakan teks asli yang sudah dibersihkan dari timestamp ke dalam key clean_text untuk keperluan audit atau debugging di sisi aplikasi.
+3. Confidence Level: Skor keyakinan diekstraksi dari rata-rata probabilitas token produk; HIGH (≥90%), MEDIUM (70-89%), atau LOW (<70%).
