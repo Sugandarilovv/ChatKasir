@@ -443,8 +443,8 @@ def postprocess(model_output: dict, teks_bersih: str) -> dict:
     ----------
     model_output:
         Dict dari ModelLoader.predict_single(), berisi:
-        { "product": str, "quantity": int, "price_satuan": int }
-        price_satuan sudah dalam RUPIAH PENUH.
+        { "product": str, "quantity": int, "price_satuan": int | None }
+        price_satuan sudah dalam RUPIAH PENUH, atau None jika tidak disebutkan.
 
     teks_bersih:
         Teks yang sudah dipreprocess (dipakai untuk mengekstrak total di chat).
@@ -457,15 +457,31 @@ def postprocess(model_output: dict, teks_bersih: str) -> dict:
     Confidence:
         HIGH   — total dari chat cocok dengan prediksi (langsung disimpan)
         LOW    — ada total di chat tapi tidak cocok   (minta konfirmasi)
-        MEDIUM — tidak ada total di chat              (tampilkan dengan opsi edit)
+        MEDIUM — tidak ada total di chat atau harga tidak diketahui (tampilkan dengan opsi edit)
+
+    Edge cases:
+        - price_satuan = None : total = None, confidence = MEDIUM
+        - product = "unknown" : confidence diturunkan menjadi MEDIUM (meskipun total cocok)
     """
-    quantity: int    = model_output["quantity"]
-    price_satuan: int = model_output["price_satuan"]
+    quantity: int          = model_output["quantity"]
+    price_satuan: Optional[int] = model_output.get("price_satuan")
+    product: str           = model_output.get("product", "")
+
+    # Jika harga tidak diketahui → total tidak bisa dihitung
+    if price_satuan is None:
+        return {
+            **model_output,
+            "total":      None,
+            "confidence": "MEDIUM",
+        }
 
     total_prediksi: int = quantity * price_satuan
     total_chat = _extract_total_from_chat(teks_bersih)
 
-    if total_chat is not None and total_prediksi == total_chat:
+    # Produk tidak dikenal → turunkan confidence ke MEDIUM (butuh konfirmasi manual)
+    if product == "unknown":
+        confidence = "MEDIUM"
+    elif total_chat is not None and total_prediksi == total_chat:
         confidence = "HIGH"
     elif total_chat is not None:
         confidence = "LOW"
@@ -477,3 +493,32 @@ def postprocess(model_output: dict, teks_bersih: str) -> dict:
         "total":      total_prediksi,
         "confidence": confidence,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  VALIDASI INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MIN_INPUT_LENGTH = 5
+
+
+def validate_input_length(raw_text: str) -> None:
+    """
+    Validasi panjang teks mentah sebelum preprocessing.
+
+    Aturan:
+      - Teks setelah strip() < 5 karakter → raise InvalidInputError (error_code 1001)
+      - Validasi ini melengkapi Pydantic min_length agar error code konsisten
+        (bukan format Pydantic default 422, melainkan {"error": true, "error_code": 1001, ...})
+
+    Raises
+    ------
+    InvalidInputError jika teks terlalu pendek.
+    """
+    from app.core.errors import InvalidInputError  # local import to avoid circular
+
+    if len(raw_text.strip()) < _MIN_INPUT_LENGTH:
+        raise InvalidInputError(
+            f"Input terlalu pendek ({len(raw_text.strip())} karakter). "
+            f"Minimal {_MIN_INPUT_LENGTH} karakter."
+        )
