@@ -132,15 +132,29 @@ Model menerima susunan *token* di atas, memprosesnya melalui arsitektur *Transfo
 ### [4] Postprocessing
 **Penanggung Jawab:** AI-2 Denny
 
-Menerjemahkan *tag* NER kembali menjadi teks utuh (`"nasi goreng"`), membulatkan angka desimal, menghitung total prediksi (`quantity × price_satuan`), lalu memverifikasinya dengan teks total di chat asli.
+Tahap ini mengubah output mesin yang mentah menjadi informasi yang siap dikonsumsi oleh sistem kasir. AI-2 mengambil matriks probabilitas dari model, melakukan ekstraksi teks, dan membungkusnya ke dalam kontrak API yang telah disepakati.
+
+**Proses yang dilakukan:**
+* **Ekstraksi Entitas:** Mengubah *tag* NER kembali menjadi teks utuh (misal: `B-PROD` + `I-PROD` → `"nasi goreng"`).
+* **Denormalisasi & Pembulatan:** Mengalikan nilai harga mentah dengan 1000, lalu membulatkannya ke **kelipatan Rp500 terdekat** (menyesuaikan pecahan mata uang). Kuantitas dibulatkan ke bilangan bulat (Integer).
+* **Kalkulasi Confidence (Hybrid/Double Validation):** 1. Sistem mengekstrak total harga dari teks *chat* menggunakan Regex pintar (mendeteksi kata "total", "jadi", atau "semua").
+  2. Jika total di *chat* **cocok** dengan hasil perkalian prediksi, *Confidence* otomatis menjadi **"HIGH"** (*Business Override* mengabaikan keraguan model).
+  3. Jika total di *chat* **tidak cocok**, *Confidence* otomatis menjadi **"LOW"**.
+  4. Jika *chat* **tidak menyebutkan total**, *Confidence* murni diambil dari probabilitas rata-rata Softmax model: `"HIGH"` (≥90%), `"MEDIUM"` (70-89%), atau `"LOW"` (<70%).
+* **Final Formatting:** Menyusun hasil ke dalam *array* `results` dan menyertakan teks yang telah dibersihkan ke dalam `clean_text`.
 
 ```json
 {
-  "product": "nasi goreng",
-  "quantity": 2,
-  "price_satuan": 10000,
-  "total": 20000,
-  "confidence": "HIGH"
+  "results": [
+    {
+      "product": "nasi goreng",
+      "quantity": 2,
+      "price_satuan": 10000,
+      "total": 20000,
+      "confidence": "HIGH"
+    }
+  ],
+  "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
 }
 ```
 
@@ -221,23 +235,36 @@ Karena sifat matematika dari setiap tugas berbeda, *loss function* yang digunaka
 | **Quantity** | Mean Absolute Error (MAE) | Sesuai dengan ketentuan target performa evaluasi tugas (MAE maksimal 0,02). |
 | **Price** | **MaskedPriceLoss (Custom)** | **Wajib dipertahankan.** Mengabaikan baris bernilai `-1` (harga tidak disebutkan di chat). Jika MSE standar dipakai, model akan belajar keliru menebak angka `-1`. |
 
-> **Optimasi Tambahan (3 Fase):** > Diterapkan **Dynamic Loss Weighting** dengan pendekatan *Curriculum Learning*. AI dilatih bertahap layaknya manusia agar fokusnya tidak pecah:
+> **Optimasi Tambahan (3 Fase):** Diterapkan **Dynamic Loss Weighting** dengan pendekatan *Curriculum Learning*. AI dilatih bertahap layaknya manusia agar fokusnya tidak pecah:
 > * **Fase 1:** Fokus penuh menghukum kesalahan Produk hingga akurasi mencapai ≥ 95%. Tugas Qty & Price diabaikan.
 > * **Fase 2:** Jika Produk lulus, fokus pindah untuk menekan *error* (MAE) Quantity hingga ≤ 0.02.
 > * **Fase 3:** Jika Produk dan Qty lulus, fokus penuh mengerahkan seluruh sisa *epoch* untuk meminimalkan *error* Price.
 
 ---
 
-## Format Kontrak Data: Model ke API
+## Format Kontrak Data: Model ke API (Handover ke AI-2)
 
-Output model final (sebelum masuk tahap postprocessing AI-2):
+Sesuai kesepakatan, *output* akhir dari *pipeline inference* akan disajikan dalam format JSON terstruktur yang mendukung *multi-result* (meskipun saat ini model memproses satu per satu).
 
 ```json
 {
-  "product_tags": ["B-PROD", "I-PROD", "O", "O"],
-  "quantity": 1.98,
-  "price_satuan": 10000.45
+  "results": [
+    {
+      "product": "nasi goreng",
+      "quantity": 2,
+      "price_satuan": 10000,
+      "total": 20000,
+      "confidence": "HIGH"
+    }
+  ],
+  "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
 }
+
 ```
 
-> **Catatan untuk AI-2 (Denny):** Konversi `product_tags` kembali menjadi string utuh, dan lakukan pembulatan integer pada `quantity` serta `price_satuan` saat memformulasikan response akhir ke Backend.
+> **Panduan Implementasi untuk AI-2 (DENNY):**
+> 1. **Struktur List:** Pastikan *output* selalu berada di dalam *array* `results` untuk menjaga konsistensi jika nantinya sistem ditingkatkan ke *multi-entity extraction*.
+> 2. **Clean Text:** Sertakan teks asli yang sudah dibersihkan ke dalam *key* `clean_text` untuk keperluan audit regex.
+> 3. **Smart Regex & Double Validation:** Wajib menggunakan pola regex `(?:total|jadi|semua)(?:nya)?\s*(\d+)\s*(rb|ribu|k)?` untuk mengekstrak total dari *chat*. Gunakan logika *Business Override*: jika total cocok, *confidence* paksa menjadi `"HIGH"`. Jika tidak cocok menjadi `"LOW"`. Gunakan rata-rata Softmax hanya jika regex tidak menemukan kata total.
+> 4. **Pembulatan 500:** Nilai `price_satuan` mentah wajib dikalikan 1000, lalu dibulatkan menggunakan rumus `/ 500.0 * 500` sebelum dikalikan dengan `quantity`.
+> 5. **Reference Logic:** Skrip utuh untuk logika ekstraksi cerdas ini sudah dirampungkan di `notebooks/03_evaluation.ipynb` Tahap 4 sebagai acuan *copy-paste* ke *Class* API.
