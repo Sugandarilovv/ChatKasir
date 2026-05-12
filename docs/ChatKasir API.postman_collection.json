@@ -1,0 +1,226 @@
+{
+  "info": {
+    "_postman_id": "179f37f7-28bb-47d0-91ff-bb6736969632",
+    "name": "ChatKasir API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54350632"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Account",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"password\": \"123456\",\r\n  \"full_name\": \"Reihan Ersa\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"token\": \"123456\" \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/auth/verify-otp",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Account",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4NjEyMDAwLCJpYXQiOjE3Nzg2MDg0MDAsImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3ODYwODQwMH1dLCJzZXNzaW9uX2lkIjoiNzJlZjNiZmItOTczOC00MWNiLWFlZmItZDA0ZTE5ODIzMGVhIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.KnL0f9T3auw6doNnjkaff7jW_PE4e6d64ilbQ2WaYqVocxZovXz2C7V0CrhEPK6W5OcraaT5Do-0cTZU2fT03A",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"password\": \"123456\" \r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update Profile & Photo",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4NjE1MDg5LCJpYXQiOjE3Nzg2MTE0ODksImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3ODYxMTQ4OX1dLCJzZXNzaW9uX2lkIjoiNDQ1NmVmYTItMDJkMS00N2QyLTkzMjYtOGE0ZTc5NDUyYWNhIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.NrbCYBndutsGBzjM0VnUnc73ncZ3cjN98vFSTBCOvjmJPNAqh-PQFCFRjg-0iASLUNQV9hUEwWjtlbKabmUQWg",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"full_name\": \"Reihan Ersa\",\r\n  \"avatar_url\": \"https://i.pinimg.com/736x/f6/25/08/f6250836523da9ea4f696b8b3cfcc817.jpg\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/users/profile",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "users",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Create Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4NjE1MDg5LCJpYXQiOjE3Nzg2MTE0ODksImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3ODYxMTQ4OX1dLCJzZXNzaW9uX2lkIjoiNDQ1NmVmYTItMDJkMS00N2QyLTkzMjYtOGE0ZTc5NDUyYWNhIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.NrbCYBndutsGBzjM0VnUnc73ncZ3cjN98vFSTBCOvjmJPNAqh-PQFCFRjg-0iASLUNQV9hUEwWjtlbKabmUQWg",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"raw_text\": \"[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/transactions",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "transactions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": ""
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Get Monthly Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": ""
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
