@@ -65,3 +65,24 @@ ai2-api/
 | `MODEL_PATH` | `models/model.keras` | Path to the Keras model file |
 | `DEBUG` | `false` | Enable debug mode |
 | `ALLOWED_ORIGINS` | `["*"]` | CORS allowed origins |
+
+# ── Security ──────────────────────────────────────────────────────────────────
+# WAJIB diganti sebelum deploy. Set sebagai HF Spaces Secret (Settings → Secrets).
+API_KEY=changeme
+
+# ── Model (path relatif dari dalam container) ─────────────────────────────────
+# Letakkan file model di folder models/ lalu commit ke repo HF Spaces
+MODEL_PATH=models/chatkasir_model.keras
+TOKENIZER_PATH=models/tokenizer.json
+MAX_SEQUENCE_LEN=128
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+SLANG_DICT_PATH=data/final/slang_utama.csv
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Ganti dengan domain frontend production (FS-1 Alfan)
+# Contoh: ALLOWED_ORIGINS=["https://chatkasir.vercel.app"]
+ALLOWED_ORIGINS=["*"]
+
+# ── App ───────────────────────────────────────────────────────────────────────
+DEBUG=false
