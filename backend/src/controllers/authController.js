@@ -1,43 +1,47 @@
 const supabase = require("../config/supabase");
+const { validationResult } = require("express-validator");
 
-// POST /auth/register
 const register = async (req, res) => {
-  const { email, password, full_name } = req.body;
-
-  if (!email || !password || !full_name) {
-    return res.status(400).json({
-      error: "Email, password, dan nama lengkap wajib diisi",
-    });
+  // Cek hasil validasi
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
+
+  const { email, password, full_name } = req.body;
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
+    options: { data: { full_name } },
   });
 
-  if (authError) {
-    return res.status(400).json({ error: authError.message });
-  }
+  if (authError) return res.status(400).json({ error: authError.message });
 
-  const { error: profileError } = await supabase.from("users").insert({
+  // Simpan ke tabel users kita
+  await supabase.from("users").insert({
     id: authData.user.id,
     full_name: full_name,
-    avatar_url: null,
   });
-
-  if (profileError) {
-    return res.status(400).json({
-      error: "Gagal simpan profil: " + profileError.message,
-    });
-  }
 
   return res.status(201).json({
-    message: "Registrasi berhasil!",
-    user: {
-      id: authData.user.id,
-      email: authData.user.email,
-    },
+    message: "Registrasi berhasil! Silakan cek email untuk kode OTP.",
   });
+};
+
+const verifyOtp = async (req, res) => {
+  const { email, token } = req.body; // Token itu kode OTP 6 digit
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "signup",
+  });
+
+  if (error) return res.status(400).json({ error: error.message });
+  return res
+    .status(200)
+    .json({ message: "Email berhasil diverifikasi!", session: data.session });
 };
 
 // POST /auth/login
@@ -68,4 +72,8 @@ const login = async (req, res) => {
   });
 };
 
-module.exports = { register, login };
+module.exports = {
+  register,
+  login,
+  verifyOtp,
+};
