@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabaseAuth } = require("../config/supabase");
 
 const authenticate = async (req, res, next) => {
   // Ambil token dari header Authorization
@@ -13,7 +13,7 @@ const authenticate = async (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   // Verifikasi token ke Supabase
-  const { data, error } = await supabase.auth.getUser(token);
+  const { data, error } = await supabaseAuth.auth.getUser(token);
 
   if (error || !data.user) {
     return res
