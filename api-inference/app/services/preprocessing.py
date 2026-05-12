@@ -420,15 +420,16 @@ def _extract_total_from_chat(teks_bersih: str) -> Optional[int]:
     -------
     Total dalam rupiah penuh sebagai int, atau None jika tidak ditemukan.
     """
+    # Tangani variasi: "totalnya", "total", "jadinya", "jadi", "semuanya", "semua"
     match = re.search(
-        r'total(?:nya)?\s*(\d+)\s*(rb|ribu|k)?',
+        r'(?:total|jadi|semua)(?:nya)?\s*(\d+)\s*(rb|ribu|k)?',
         teks_bersih,
         re.IGNORECASE,
     )
     if not match:
         return None
 
-    angka = int(match.group(1))
+    angka  = int(match.group(1))
     satuan = match.group(2)
     if satuan and satuan.lower() in ['rb', 'ribu', 'k']:
         return angka * 1000
@@ -437,61 +438,80 @@ def _extract_total_from_chat(teks_bersih: str) -> Optional[int]:
 
 def postprocess(model_output: dict, teks_bersih: str) -> dict:
     """
-    Menghitung total dan confidence flag dari output model.
+    Menghitung total dan menentukan confidence flag dari output model.
 
     Parameters
     ----------
     model_output:
         Dict dari ModelLoader.predict_single(), berisi:
-        { "product": str, "quantity": int, "price_satuan": int | None }
-        price_satuan sudah dalam RUPIAH PENUH, atau None jika tidak disebutkan.
+        {
+          "product":          str,
+          "quantity":         int,
+          "price_satuan":     int | None,
+          "avg_conf_softmax": float,   ← rata-rata confidence NER (0-100)
+        }
 
     teks_bersih:
         Teks yang sudah dipreprocess (dipakai untuk mengekstrak total di chat).
 
     Returns
     -------
-    Dict lengkap:
-        { "product", "quantity", "price_satuan", "total", "confidence" }
+    Dict lengkap: { "product", "quantity", "price_satuan", "total", "confidence" }
 
-    Confidence:
-        HIGH   — total dari chat cocok dengan prediksi (langsung disimpan)
-        LOW    — ada total di chat tapi tidak cocok   (minta konfirmasi)
-        MEDIUM — tidak ada total di chat atau harga tidak diketahui (tampilkan dengan opsi edit)
+    Logika Confidence (Business Override):
+        Ada total di chat:
+            total_chat == total_prediksi → HIGH  (paksa, override softmax)
+            total_chat != total_prediksi → LOW   (paksa, override softmax)
+        Tidak ada total di chat (murni pakai Softmax AI):
+            avg_conf_softmax >= 90 → HIGH
+            avg_conf_softmax >= 70 → MEDIUM
+            avg_conf_softmax <  70 → LOW
 
     Edge cases:
         - price_satuan = None : total = None, confidence = MEDIUM
-        - product = "unknown" : confidence diturunkan menjadi MEDIUM (meskipun total cocok)
+        - product = "unknown" : confidence = MEDIUM
     """
-    quantity: int          = model_output["quantity"]
+    quantity: int           = model_output["quantity"]
     price_satuan: Optional[int] = model_output.get("price_satuan")
-    product: str           = model_output.get("product", "")
+    product: str            = model_output.get("product", "")
+    avg_conf: float         = model_output.get("avg_conf_softmax", 0.0)
 
-    # Jika harga tidak diketahui → total tidak bisa dihitung
+    # Harga tidak diketahui → total tidak bisa dihitung
     if price_satuan is None:
         return {
-            **model_output,
-            "total":      None,
-            "confidence": "MEDIUM",
+            "product":      product,
+            "quantity":     quantity,
+            "price_satuan": None,
+            "total":        None,
+            "confidence":   "MEDIUM",
         }
 
     total_prediksi: int = quantity * price_satuan
     total_chat = _extract_total_from_chat(teks_bersih)
 
-    # Produk tidak dikenal → turunkan confidence ke MEDIUM (butuh konfirmasi manual)
+    # Produk tidak dikenal → selalu MEDIUM (butuh konfirmasi manual)
     if product == "unknown":
         confidence = "MEDIUM"
-    elif total_chat is not None and total_prediksi == total_chat:
-        confidence = "HIGH"
+
+    # Business Override: ada total di chat → cocokkan dengan prediksi
     elif total_chat is not None:
-        confidence = "LOW"
+        confidence = "HIGH" if total_chat == total_prediksi else "LOW"
+
+    # Tidak ada total di chat → murni pakai Softmax AI
     else:
-        confidence = "MEDIUM"
+        if avg_conf >= 90:
+            confidence = "HIGH"
+        elif avg_conf >= 70:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
 
     return {
-        **model_output,
-        "total":      total_prediksi,
-        "confidence": confidence,
+        "product":      product,
+        "quantity":     quantity,
+        "price_satuan": price_satuan,
+        "total":        total_prediksi,
+        "confidence":   confidence,
     }
 
 

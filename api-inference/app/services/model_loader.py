@@ -2,26 +2,20 @@
 ModelLoader — singleton yang memuat model Keras AI-1 (Rifan) dan
 mengekspos method predict_single untuk satu teks bersih.
 
-Arsitektur model (dari AI-1 README — Transformer + Task-Specific Branches):
-  - Shared Backbone  : Transformer Encoder (Embed 128, FFN 256)
-  - Product Branch   : BiLSTM + Dense(Softmax) → per-token NER tags (O, B-PROD, I-PROD)
-  - Quantity Branch  : Dense Regresi (ReLU) → angka desimal, dibulatkan ke int
-  - Price Branch     : Dense Regresi (ReLU) → harga dinormalisasi ÷1000 saat training
-                       → WAJIB dikalikan ×1000 saat inferensi untuk mendapatkan rupiah penuh
+Perubahan v1.1:
+  - Custom Layer TransformerEncoder didaftarkan ke custom_objects saat load
+  - Tokenizer diganti ke HuggingFace WordPiece (tokenizers>=0.15.0)
+  - Pembulatan harga ke kelipatan Rp500 terdekat
+  - avg_conf_softmax dihitung dari probabilitas NER token produk
 
-Output shape model:
-  product_probs : (1, seq_len, 3)   — probabilitas per token untuk [O, B-PROD, I-PROD]
-  quantity_raw  : (1, 1)            — nilai regresi quantity
-  price_raw     : (1, 1)            — nilai regresi price (dalam ribuan, perlu ×1000)
-
-Edge cases yang ditangani:
-  - Produk tidak dikenal (semua tag = O)    → product = "unknown"
-  - Harga tidak disebutkan (price_raw ≈ 0)  → price_satuan = None (sinyal ke postprocess)
+Catatan implementasi:
+  Import tensorflow dan tokenizers dilakukan LAZY (di dalam fungsi _load_model
+  dan predict_single) agar module ini bisa diimport saat unit/integration test
+  tanpa TensorFlow terinstal di environment CI.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Optional
 
@@ -35,13 +29,69 @@ _TAG_O      = 0
 _TAG_B_PROD = 1
 _TAG_I_PROD = 2
 
-# Threshold harga: jika output model (sebelum ×1000) ≤ nilai ini,
-# dianggap "harga tidak disebutkan" → price_satuan = None
-_PRICE_NULL_THRESHOLD = 0.5   # artinya < Rp 500 setelah ×1000
+# Jika output price model (sebelum x1000) <= nilai ini → harga tidak disebutkan
+_PRICE_NULL_THRESHOLD = 0.5   # < Rp 500 setelah x1000
 
-# Nama fallback jika NER tidak berhasil menemukan produk
 _UNKNOWN_PRODUCT = "unknown"
 
+
+def _build_transformer_encoder_class():
+    """
+    Bangun class TransformerEncoder secara lazy agar TF tidak diimport
+    saat module di-load (penting untuk testability tanpa TF).
+    """
+    import tensorflow as tf
+    from tensorflow.keras.layers import (
+        Dense, Dropout, LayerNormalization, MultiHeadAttention,
+    )
+
+    class TransformerEncoder(tf.keras.layers.Layer):
+        """
+        Custom Transformer Encoder Layer — didaftarkan ke custom_objects saat
+        load_model karena tidak ada di built-in Keras.
+
+        Arsitektur (sesuai spesifikasi AI-1 Rifan):
+          Embed 128, Multi-Head Attention (4 head), FFN 256, Dropout 0.1
+        """
+
+        def __init__(self, embed_dim=128, num_heads=4, ff_dim=256, rate=0.1, **kwargs):
+            super(TransformerEncoder, self).__init__(**kwargs)
+            self.att        = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+            self.ffn        = tf.keras.Sequential([
+                Dense(ff_dim, activation="relu"),
+                Dense(embed_dim),
+            ])
+            self.layernorm1 = LayerNormalization(epsilon=1e-6)
+            self.layernorm2 = LayerNormalization(epsilon=1e-6)
+            self.dropout1   = Dropout(rate)
+            self.dropout2   = Dropout(rate)
+
+        def call(self, inputs, training=False, mask=None):
+            padding_mask = (
+                tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
+                if mask is not None else None
+            )
+            attn_output = self.att(inputs, inputs, attention_mask=padding_mask)
+            attn_output = self.dropout1(attn_output, training=training)
+            out1        = self.layernorm1(inputs + attn_output)
+            ffn_output  = self.ffn(out1)
+            ffn_output  = self.dropout2(ffn_output, training=training)
+            return self.layernorm2(out1 + ffn_output)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update({
+                "embed_dim": self.att.key_dim,
+                "num_heads": self.att.num_heads,
+                "ff_dim":    self.ffn.layers[0].units,
+                "rate":      self.dropout1.rate,
+            })
+            return config
+
+    return TransformerEncoder
+
+
+# ── ModelLoader ───────────────────────────────────────────────────────────────
 
 class ModelLoader:
     """
@@ -49,7 +99,7 @@ class ModelLoader:
     Dipakai via ModelLoader.get_instance().predict_single(teks_bersih).
     """
 
-    _model: Optional[Any] = None
+    _model:     Optional[Any] = None
     _tokenizer: Optional[Any] = None
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -67,86 +117,46 @@ class ModelLoader:
     @classmethod
     def reset(cls) -> None:
         """Lepas model dari memory (untuk testing atau graceful shutdown)."""
-        cls._model = None
+        cls._model     = None
         cls._tokenizer = None
 
-    # ── Internal ──────────────────────────────────────────────────────────────
+    # ── Internal load ─────────────────────────────────────────────────────────
 
     @classmethod
     def _load_model(cls) -> None:
         try:
-            import tensorflow as tf  # type: ignore
+            import os
 
-            logger.info("Memuat model dari %s …", settings.MODEL_PATH)
-            cls._model = tf.keras.models.load_model(settings.MODEL_PATH)
+            import tensorflow as tf
+            from tokenizers import Tokenizer
+
+            TransformerEncoder = _build_transformer_encoder_class()
+
+            # ── Model Keras ───────────────────────────────────────────────────
+            logger.info("Memuat model dari %s ...", settings.MODEL_PATH)
+            cls._model = tf.keras.models.load_model(
+                settings.MODEL_PATH,
+                custom_objects={"TransformerEncoder": TransformerEncoder},
+                compile=False,
+            )
             logger.info("Model berhasil dimuat.")
 
-            import os
+            # ── HuggingFace WordPiece Tokenizer ───────────────────────────────
             if os.path.exists(settings.TOKENIZER_PATH):
-                with open(settings.TOKENIZER_PATH, encoding="utf-8") as f:
-                    tokenizer_config = json.load(f)
-                cls._tokenizer = tf.keras.preprocessing.text.tokenizer_from_json(
-                    json.dumps(tokenizer_config)
-                )
-                logger.info("Tokenizer berhasil dimuat dari %s.", settings.TOKENIZER_PATH)
+                cls._tokenizer = Tokenizer.from_file(settings.TOKENIZER_PATH)
+                logger.info("Tokenizer dimuat dari %s.", settings.TOKENIZER_PATH)
             else:
                 logger.warning(
-                    "Tokenizer tidak ditemukan di '%s'. "
-                    "Inferensi akan gagal sampai tokenizer tersedia.",
-                    settings.TOKENIZER_PATH,
+                    "Tokenizer tidak ditemukan di '%s'.", settings.TOKENIZER_PATH
                 )
 
         except FileNotFoundError:
             logger.warning(
-                "Model tidak ditemukan di '%s'. "
-                "Inferensi akan gagal sampai model ditempatkan di sana.",
-                settings.MODEL_PATH,
+                "Model tidak ditemukan di '%s'.", settings.MODEL_PATH
             )
         except Exception as exc:
-            logger.exception("Error tak terduga saat memuat model: %s", exc)
+            logger.exception("Error saat memuat model: %s", exc)
             raise ModelNotLoadedError(str(exc)) from exc
-
-    # ── NER Helper ────────────────────────────────────────────────────────────
-
-    def _extract_product_from_tags(
-        self,
-        tag_ids: "list[int]",
-        token_ids: "list[int]",
-    ) -> str:
-        """
-        Konversi sequence tag NER + token IDs → nama produk sebagai string.
-
-        Proses:
-          1. Cari posisi token dengan tag B-PROD atau I-PROD.
-          2. Untuk tiap posisi tersebut, lookup kata di tokenizer.index_word.
-          3. Gabungkan kata-kata yang berdekatan (span) menjadi nama produk.
-          4. Kembalikan "unknown" jika tidak ada token bertag produk.
-
-        Parameters
-        ----------
-        tag_ids   : list[int]  — argmax per token, panjang = seq_len
-        token_ids : list[int]  — ID token (sebelum padding zero-filtered)
-        """
-        if self._tokenizer is None:
-            return _UNKNOWN_PRODUCT
-
-        index_word = getattr(self._tokenizer, "index_word", {})
-        product_tokens: list[str] = []
-
-        for pos, (tag, tok_id) in enumerate(zip(tag_ids, token_ids)):
-            if tok_id == 0:
-                # Token padding — skip
-                continue
-            if tag in (_TAG_B_PROD, _TAG_I_PROD):
-                word = index_word.get(tok_id, "")
-                if word and word != "[SEP]":
-                    product_tokens.append(word)
-
-        if not product_tokens:
-            logger.debug("NER: tidak ada token bertag B-PROD/I-PROD → fallback 'unknown'")
-            return _UNKNOWN_PRODUCT
-
-        return " ".join(product_tokens)
 
     # ── Inference ─────────────────────────────────────────────────────────────
 
@@ -154,84 +164,87 @@ class ModelLoader:
         """
         Jalankan inferensi untuk satu teks bersih.
 
-        Parameters
-        ----------
-        teks_bersih:
-            Teks sudah dipreprocess — tanpa timestamp, sudah dinormalisasi slang,
-            format: "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb total 20rb"
-
         Returns
         -------
-        dict: { "product": str, "quantity": int, "price_satuan": int | None }
+        dict:
+            {
+              "product":          str,        # nama produk atau "unknown"
+              "quantity":         int,        # minimal 1
+              "price_satuan":     int | None, # None jika harga tidak disebutkan
+              "avg_conf_softmax": float,      # rata-rata confidence NER (0-100)
+            }
 
         Notes
         -----
-        - price_satuan = None  → harga tidak disebutkan di chat (bukan 0)
-        - product = "unknown"  → NER gagal mengidentifikasi nama produk
-        - total dan confidence belum ada — dihitung oleh postprocessing.postprocess()
+        - price_satuan dibulatkan ke kelipatan Rp500 terdekat
+        - avg_conf_softmax dipakai postprocess untuk confidence saat tidak ada
+          total di chat (HIGH >= 90, MEDIUM >= 70, LOW < 70)
         """
         if self._model is None:
             raise ModelNotLoadedError()
         if self._tokenizer is None:
-            raise ModelNotLoadedError("Tokenizer belum dimuat — pastikan tokenizer.json tersedia.")
+            raise ModelNotLoadedError(
+                "Tokenizer belum dimuat — pastikan tokenizer.json tersedia."
+            )
 
         try:
             import numpy as np
-            import tensorflow as tf  # type: ignore
 
-            # ── Tokenisasi & padding ──────────────────────────────────────
-            seq = self._tokenizer.texts_to_sequences([teks_bersih])
-            padded = tf.keras.preprocessing.sequence.pad_sequences(
-                seq,
-                maxlen=settings.MAX_SEQUENCE_LEN,
-                padding="post",
-                truncating="post",
-            )
-            token_ids: list[int] = padded[0].tolist()
+            # ── Tokenisasi & padding (HuggingFace WordPiece) ─────────────────
+            encoded = self._tokenizer.encode(teks_bersih)
+            ids     = encoded.ids
 
-            # ── Inferensi ─────────────────────────────────────────────────
-            raw = self._model.predict(padded, verbose=0)
-
-            if isinstance(raw, (list, tuple)) and len(raw) == 3:
-                product_probs, quantity_raw, price_raw = raw
-
-                # ── Product: NER per-token (shape: 1 × seq_len × 3) ──────
-                # argmax per posisi token → [O=0, B-PROD=1, I-PROD=2]
-                tag_ids: list[int] = np.argmax(product_probs[0], axis=-1).tolist()
-                product_name = self._extract_product_from_tags(tag_ids, token_ids)
-
-                # ── Quantity: regresi, minimal 1 ─────────────────────────
-                quantity = max(1, round(float(quantity_raw[0][0])))
-
-                # ── Price: regresi dinormalisasi ÷1000 saat training ──────
-                # → kalikan ×1000 untuk mendapatkan rupiah penuh
-                price_raw_val = float(price_raw[0][0])
-                if price_raw_val <= _PRICE_NULL_THRESHOLD:
-                    # Harga tidak disebutkan di chat (model belajar label -1 → output ≈ 0)
-                    price_satuan: Optional[int] = None
-                    logger.debug(
-                        "Price output %.4f ≤ threshold %.4f → price_satuan=None",
-                        price_raw_val, _PRICE_NULL_THRESHOLD,
-                    )
-                else:
-                    price_satuan = max(0, round(price_raw_val * 1000))
-
+            if len(ids) > settings.MAX_SEQUENCE_LEN:
+                ids = ids[:settings.MAX_SEQUENCE_LEN]
             else:
-                # Fallback: single output array (arsitektur non-standar)
-                logger.warning(
-                    "Output model tidak berformat 3-tuple. "
-                    "Menggunakan fallback parser. Raw type: %s", type(raw)
+                ids = ids + [0] * (settings.MAX_SEQUENCE_LEN - len(ids))
+
+            padded = np.array([ids])
+
+            # ── Inferensi ─────────────────────────────────────────────────────
+            raw = self._model.predict(padded, verbose=0)
+            product_probs, quantity_raw, price_raw = raw
+
+            # ── Product: NER per-token + Softmax confidence ───────────────────
+            tag_ids = np.argmax(product_probs[0], axis=-1)   # shape: (seq_len,)
+            probs   = np.max(product_probs[0], axis=-1)       # shape: (seq_len,)
+
+            product_token_ids: list[int] = []
+            confidences: list[float]     = []
+
+            for i, tag in enumerate(tag_ids):
+                if tag in (_TAG_B_PROD, _TAG_I_PROD):
+                    product_token_ids.append(ids[i])
+                    confidences.append(float(probs[i]))
+
+            product_name     = (
+                self._tokenizer.decode(product_token_ids)
+                if product_token_ids
+                else _UNKNOWN_PRODUCT
+            )
+            avg_conf_softmax = float(np.mean(confidences) * 100) if confidences else 0.0
+
+            # ── Quantity ──────────────────────────────────────────────────────
+            quantity = max(1, int(round(float(quantity_raw[0][0]))))
+
+            # ── Price: denormalisasi x1000, bulatkan ke Rp500 terdekat ───────
+            price_raw_val = float(price_raw[0][0])
+
+            if price_raw_val <= _PRICE_NULL_THRESHOLD:
+                price_satuan: Optional[int] = None
+                logger.debug(
+                    "Price output %.4f <= threshold → price_satuan=None",
+                    price_raw_val,
                 )
-                arr = np.array(raw).flatten()
-                product_name = _UNKNOWN_PRODUCT
-                quantity     = max(1, round(float(arr[1]))) if len(arr) > 1 else 1
-                raw_price    = float(arr[2]) if len(arr) > 2 else 0.0
-                price_satuan = max(0, round(raw_price * 1000)) if raw_price > _PRICE_NULL_THRESHOLD else None
+            else:
+                price_mentah = price_raw_val * 1000
+                price_satuan = max(0, int(round(price_mentah / 500.0) * 500))
 
             return {
-                "product":      product_name,
-                "quantity":     quantity,
-                "price_satuan": price_satuan,
+                "product":          product_name,
+                "quantity":         quantity,
+                "price_satuan":     price_satuan,
+                "avg_conf_softmax": avg_conf_softmax,
             }
 
         except ModelNotLoadedError:

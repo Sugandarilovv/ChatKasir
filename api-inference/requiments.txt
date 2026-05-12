@@ -9,6 +9,12 @@ pydantic-settings>=2.2.0
 tensorflow>=2.16.0
 numpy>=1.26.0
 
+# Tokenizer (HuggingFace WordPiece — dipakai AI-1)
+tokenizers>=0.15.0
+
+# Auto-download model dari Google Drive
+gdown
+
 # Testing
 pytest>=8.2.0
-httpx>=0.27.0         
+httpx>=0.27.0

@@ -24,8 +24,8 @@ class PredictRequest(BaseModel):
         ],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "raw_text": (
                     "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\n"
@@ -33,6 +33,7 @@ class PredictRequest(BaseModel):
                 )
             }
         }
+    }
 
 
 # ── Per-produk result ─────────────────────────────────────────────────────────
@@ -102,8 +103,8 @@ class PredictResponse(BaseModel):
         description="Teks sudah dibersihkan (tanpa timestamp, sudah normalisasi slang).",
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "results": [
                     {
@@ -117,3 +118,4 @@ class PredictResponse(BaseModel):
                 "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya",
             }
         }
+    }
