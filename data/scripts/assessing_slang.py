@@ -30,7 +30,7 @@ print(f"\nHuruf kapital slang  : {df['slang'].str.contains(r'[A-Z]', regex=True)
 print(f"Huruf kapital formal : {df['formal'].str.contains(r'[A-Z]', regex=True).sum()} baris")
 
 # Cek spasi berlebih
-print(f"\nSpasi berlebih slang  : {df['slang'].str.contains(r'chr(92)s{2,}', regex=True).sum()} baris")
+print(f"\nSpasi berlebih slang  : {df['slang'].str.contains(r'\s{2,}', regex=True).sum()} baris")
 print(f"Spasi berlebih formal : {df['formal'].str.contains(r'chr(92)s{2,}', regex=True).sum()} baris")
 
 # Cek slang = formal (tidak berguna)

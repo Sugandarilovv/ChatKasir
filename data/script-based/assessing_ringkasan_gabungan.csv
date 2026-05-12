@@ -1,0 +1,4 @@
+dataset,target_rows,total_baris,price_minus1,price_valid,price_min,price_max,qty_min,qty_max,ada_sep,tanpa_sep,baris_tanpa_harga_teks
+synthetic_orders_weighted_10000.csv,10000,100500,17500,83000,3000,75000,1,10,98009,2491,17584
+synthetic_orders_weighted_50000.csv,50000,100500,17500,83000,3000,75000,1,10,98009,2491,17584
+synthetic_orders_weighted_100000.csv,100000,100500,17500,83000,3000,75000,1,10,98009,2491,17584
