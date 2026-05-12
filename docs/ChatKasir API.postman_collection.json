@@ -26,14 +26,9 @@
             "url": {
               "raw": "http://localhost:3000/auth/register",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "3000",
-              "path": [
-                "auth",
-                "register"
-              ]
+              "path": ["auth", "register"]
             }
           },
           "response": []
@@ -55,14 +50,9 @@
             "url": {
               "raw": "http://localhost:3000/auth/verify-otp",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "3000",
-              "path": [
-                "auth",
-                "verify-otp"
-              ]
+              "path": ["auth", "verify-otp"]
             }
           },
           "response": []
@@ -94,14 +84,9 @@
             "url": {
               "raw": "http://localhost:3000/auth/login",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "3000",
-              "path": [
-                "auth",
-                "login"
-              ]
+              "path": ["auth", "login"]
             }
           },
           "response": []
@@ -138,14 +123,9 @@
             "url": {
               "raw": "http://localhost:3000/users/profile",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "3000",
-              "path": [
-                "users",
-                "profile"
-              ]
+              "path": ["users", "profile"]
             }
           },
           "response": []
@@ -182,13 +162,9 @@
             "url": {
               "raw": "http://localhost:3000/transactions",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "3000",
-              "path": [
-                "transactions"
-              ]
+              "path": ["transactions"]
             }
           },
           "response": []
