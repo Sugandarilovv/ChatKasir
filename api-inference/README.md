@@ -197,7 +197,7 @@ SLANG_DICT_PATH=data/final/slang_utama.csv
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Ganti dengan domain frontend production (FS-1 Alfan)
-# Contoh: ALLOWED_ORIGINS=["https://chatkasir.vercel.app"]
+# Contoh: ALLOWED_ORIGINS=["https://chatkasir.netlify.app"]
 ALLOWED_ORIGINS=["*"]
 
 # ── App ───────────────────────────────────────────────────────────────────────
