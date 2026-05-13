@@ -1,0 +1,9 @@
+# requirements.txt — ChatKasir Streamlit Dashboard
+# File ini memberitahu Streamlit Cloud library apa yang perlu diinstal.
+# Versi dikunci agar deployment konsisten dan tidak tiba-tiba rusak.
+
+streamlit>=1.35.0
+pandas>=2.0.0
+numpy>=1.26.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
