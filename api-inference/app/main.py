@@ -30,7 +30,7 @@ def download_assets():
                     →  load dari path lokal
     """
     os.makedirs("models", exist_ok=True)
-    os.makedirs("../data/final", exist_ok=True)
+    os.makedirs("data/final", exist_ok=True)
 
     links = {
         settings.MODEL_PATH:      settings.GDRIVE_MODEL_URL,
