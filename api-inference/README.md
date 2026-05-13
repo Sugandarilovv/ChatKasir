@@ -81,7 +81,7 @@ api-inference/
 │   ├── test_stress.py      # Stress test 100 request paralel
 │   └── teats_preprocessing.py
 ├── .env.example
-├── requiments.txt
+├── requirements.txt
 └── API_CONTRACT.md
 ```
 
@@ -91,16 +91,16 @@ api-inference/
 
 ```bash
 cd api-inference
-pip install -r requiments.txt
+pip install -r requirements.txt
 
 # Salin dan edit konfigurasi
 cp .env.example .env
 # Edit MODEL_PATH, TOKENIZER_PATH, API_KEY di .env
 
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 7860
 ```
 
-Dokumentasi interaktif: `http://localhost:8000/docs`
+Dokumentasi interaktif: `http://localhost:7860/docs`
 
 ---
 
@@ -146,41 +146,35 @@ pytest tests/test_stress.py -m stress -v
 # Atau jalankan stress test langsung sebagai script
 python tests/test_stress.py --url http://localhost:8000 --api-key changeme --n 100 --workers 10
 ```
-## Project Structure
 
-```
-ai2-api/
-├── app/
-│   ├── main.py              # FastAPI entrypoint
-│   ├── core/
-│   │   ├── config.py        # Settings via pydantic-settings
-│   │   ├── errors.py        # Custom exceptions & error codes
-│   │   └── security.py      # API key auth dependency
-│   ├── routers/
-│   │   ├── predict.py       # POST /predict
-│   │   └── health.py        # GET /health
-│   ├── schemas/
-│   │   └── predict.py       # Pydantic request/response models
-│   └── services/
-│       └── model_loader.py  # TF model singleton & inference
-├── models/                  # Place your .keras file here
-├── tests/
-│   └── test_predict.py      # Pytest tests
-├── docs/
-├── API_CONTRACT.md
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+## Deploy ke Hugging Face Spaces
 
-## Environment Variables
+1. Buat Space baru di [huggingface.co/spaces](https://huggingface.co/spaces), pilih **Docker** sebagai SDK.
 
-| Variable | Default | Description |
-|---|---|---|
-| `API_KEY` | `changeme` | Secret key for `X-API-Key` header |
-| `MODEL_PATH` | `models/model.keras` | Path to the Keras model file |
-| `DEBUG` | `false` | Enable debug mode |
-| `ALLOWED_ORIGINS` | `["*"]` | CORS allowed origins |
+2. Push repo ke Space:
+   ```bash
+   git remote add space https://huggingface.co/spaces/<username>/chatkasir-api
+   git subtree push --prefix api-inference space main
+   ```
+
+3. Upload file model ke Space (via Git LFS atau HF Hub):
+   ```bash
+   # Install git-lfs
+   git lfs install
+   git lfs track "*.keras"
+   # Copy model ke folder models/
+   cp ../../ai-model/assets/models/chatkasir_model.keras models/
+   cp ../../ai-model/assets/tokenizers/tokenizer.json models/
+   git add models/ .gitattributes
+   git commit -m "add model files"
+   git push space main
+   ```
+
+4. Set secrets di **Space Settings → Repository Secrets**:
+   - `API_KEY` → key rahasia untuk autentikasi FS-2
+
+5. Space akan otomatis build menggunakan `Dockerfile` dan tersedia di:
+   `https://<username>-chatkasir-api.hf.space`
 
 # ── Security ──────────────────────────────────────────────────────────────────
 # WAJIB diganti sebelum deploy. Set sebagai HF Spaces Secret (Settings → Secrets).
