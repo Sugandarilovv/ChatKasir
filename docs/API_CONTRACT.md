@@ -26,7 +26,8 @@ Request:
 ```json
 {
   "email": "penjual@gmail.com",
-  "password": "password123"
+  "password": "password123",
+  "full_name": "penjual baik"
 }
 ```
 
