@@ -1,18 +1,28 @@
 const { supabase } = require("../config/supabase");
 
-const callAIExtract = async (text) => {
-  try {
-    // cek health dulu terlebih dahulu
-    const health = await fetch(`${process.env.AI_API_URL}/health`, {
+// cek health dulu terlebih dahulu
+/**const health = await fetch(`${process.env.AI_API_URL}/health`, {
       headers: { "X-API-Key": process.env.AI_API_KEY },
     });
 
     if (!health.ok) {
       console.error("AI API tidak siap");
       return { status: "failed", predictions: [] };
+    }**/
+
+const callAIExtract = async (text) => {
+  try {
+    // health check — TANPA API key
+    const health = await fetch(`${process.env.AI_API_URL}/health`);
+    const healthData = await health.json();
+    console.log("Health check:", healthData);
+
+    if (!healthData.model_loaded) {
+      console.warn("Model belum ready");
+      return { status: "failed", predictions: [] };
     }
 
-    // kirim ke /predict
+    // predict — DENGAN API key
     const response = await fetch(`${process.env.AI_API_URL}/predict`, {
       method: "POST",
       headers: {
@@ -29,13 +39,13 @@ const callAIExtract = async (text) => {
     }
 
     const data = await response.json();
+    console.log("Response dari AI:", JSON.stringify(data));
 
-    //normalisasi format dari punya AI2
     const predictions = (data.results || []).map((item) => ({
-      product_name: item.product, // "product" → "product_name"
+      product_name: item.product,
       quantity: item.quantity,
-      price_satuan: item.price_satuan, // bisa null
-      total: item.total, // bisa null
+      price_satuan: item.price_satuan,
+      total: item.total,
       confidence: item.confidence,
     }));
 
