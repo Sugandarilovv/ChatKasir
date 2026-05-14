@@ -176,23 +176,23 @@ python tests/test_stress.py --url http://localhost:8000 --api-key changeme --n 1
 5. Space akan otomatis build menggunakan `Dockerfile` dan tersedia di:
    `https://<username>-chatkasir-api.hf.space`
 
-# ── Security ──────────────────────────────────────────────────────────────────
+# Security 
 # WAJIB diganti sebelum deploy. Set sebagai HF Spaces Secret (Settings → Secrets).
 API_KEY=changeme
 
-# ── Model (path relatif dari dalam container) ─────────────────────────────────
+# Model (path relatif dari dalam container) 
 # Letakkan file model di folder models/ lalu commit ke repo HF Spaces
 MODEL_PATH=models/chatkasir_model.keras
 TOKENIZER_PATH=models/tokenizer.json
 MAX_SEQUENCE_LEN=64
 
-# ── Data ──────────────────────────────────────────────────────────────────────
+# Data 
 SLANG_DICT_PATH=data/final/slang_utama.csv
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# CORS 
 # Ganti dengan domain frontend production (FS-1 Alfan)
 # Contoh: ALLOWED_ORIGINS=["https://chatkasir.netlify.app"]
 ALLOWED_ORIGINS=["*"]
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# App
 DEBUG=false
