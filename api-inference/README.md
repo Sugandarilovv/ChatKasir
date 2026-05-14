@@ -73,13 +73,13 @@ api-inference/
 │   ├── schemas/
 │   │   └── predict.py      # PredictRequest, OrderItem, PredictResponse
 │   ├── services/
-│   │   ├── model_loader.py   # Singleton TF model + NER extraction
-│   │   └── preprocessing.py  # Preprocessing + postprocessing pipeline
+│   │   ├── model_loader.py # Singleton TF model + NER extraction
+│   │   └── processing.py   # Preprocessing + postprocessing pipeline
 │   └── main.py             # FastAPI app, CORS, exception handlers
 ├── tests/
 │   ├── tests_predict.py    # Integration tests (30+ skenario)
 │   ├── test_stress.py      # Stress test 100 request paralel
-│   └── teats_preprocessing.py
+│   └── test_preprocessing.py
 ├── .env.example
 ├── requirements.txt
 └── API_CONTRACT.md

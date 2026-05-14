@@ -25,7 +25,7 @@ from app.core.errors import InvalidInputError
 from app.core.security import require_api_key
 from app.schemas.predict import OrderItem, PredictRequest, PredictResponse
 from app.services.model_loader import ModelLoader
-from app.services.preprocessing import (
+from app.services.processing import (
     postprocess,
     prepare_model_input,
     validate_input_length,
