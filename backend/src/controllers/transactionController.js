@@ -1,34 +1,61 @@
 const { supabase } = require("../config/supabase");
 
 const callAIExtract = async (text) => {
-  // --- MOCKING (Data Palsu Sementara) ---
-  console.log("Menerima teks:", text);
-  console.log("Pura-puranya AI Denny lagi mikir...");
+  try {
+    // cek health dulu terlebih dahulu
+    const health = await fetch(`${process.env.AI_API_URL}/health`, {
+      headers: { "X-API-Key": process.env.AI_API_KEY },
+    });
 
-  //skenario pura pura
-  return {
-    status: "success",
-    predictions: [
-      {
-        product_name: "Kopi Susu Gula Aren",
-        quantity: 2,
-        price_satuan: 15000,
-        confidence: "HIGH",
+    if (!health.ok) {
+      console.error("AI API tidak siap");
+      return { status: "failed", predictions: [] };
+    }
+
+    // kirim ke /predict
+    const response = await fetch(`${process.env.AI_API_URL}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": process.env.AI_API_KEY,
       },
-    ],
-  };
+      body: JSON.stringify({ raw_text: text }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      console.error("AI API error:", errData);
+      return { status: "failed", predictions: [] };
+    }
+
+    const data = await response.json();
+
+    //normalisasi format dari punya AI2
+    const predictions = (data.results || []).map((item) => ({
+      product_name: item.product, // "product" → "product_name"
+      quantity: item.quantity,
+      price_satuan: item.price_satuan, // bisa null
+      total: item.total, // bisa null
+      confidence: item.confidence,
+    }));
+
+    return { status: "success", predictions };
+  } catch (err) {
+    console.error("Tidak bisa konek ke AI API:", err.message);
+    return { status: "failed", predictions: [] };
+  }
 };
 
 // POST /transactions
 const createTransaction = async (req, res) => {
   const { raw_text } = req.body;
-  const user_id = req.user.id; // dari authMiddleware
+  const user_id = req.user.id;
 
-  // Validasi input
   if (!raw_text || raw_text.trim() === "") {
     return res.status(400).json({ error: "Teks chat tidak boleh kosong" });
   }
 
+  // Simpan teks mentah dulu
   const { data: extraction, error: extractionError } = await supabase
     .from("chat_extractions")
     .insert([{ raw_text, user_id, status: "pending" }])
@@ -41,32 +68,48 @@ const createTransaction = async (req, res) => {
     });
   }
 
+  // Buat manggil AI
   const aiResponse = await callAIExtract(raw_text);
 
-  if (
-    aiResponse.status === "failed" ||
-    !aiResponse.predictions ||
-    aiResponse.predictions.length === 0
-  ) {
+  if (!aiResponse.predictions || aiResponse.predictions.length === 0) {
     await supabase
       .from("chat_extractions")
       .update({ status: "failed" })
       .eq("id", extraction.id);
-
     return res
       .status(422)
       .json({ error: "Teks tidak dapat diekstrak oleh AI" });
   }
 
-  const transactionItems = aiResponse.predictions.map((item) => ({
+  // Filter item unknown
+  const validItems = aiResponse.predictions.filter((item) => {
+    if (item.product_name === "unknown") {
+      console.log("Produk tidak dikenali, skip");
+      return false;
+    }
+    return true;
+  });
+
+  if (validItems.length === 0) {
+    await supabase
+      .from("chat_extractions")
+      .update({ status: "failed" })
+      .eq("id", extraction.id);
+    return res
+      .status(422)
+      .json({ error: "Teks tidak dapat diekstrak oleh AI" });
+  }
+
+  // Simpan ke transactions
+  const transactionItems = validItems.map((item) => ({
     extraction_id: extraction.id,
     user_id,
     product_name: item.product_name,
     quantity: item.quantity,
     price_satuan: item.price_satuan,
-    total: item.price_satuan * item.quantity,
+    total: item.total,
     confidence: item.confidence,
-    is_manual: false,
+    is_manual: item.confidence === "LOW" || item.price_satuan === null,
     transaction_date: new Date().toISOString().split("T")[0],
   }));
 
@@ -81,6 +124,7 @@ const createTransaction = async (req, res) => {
     });
   }
 
+  // Update status jadi processed
   await supabase
     .from("chat_extractions")
     .update({ status: "processed" })
