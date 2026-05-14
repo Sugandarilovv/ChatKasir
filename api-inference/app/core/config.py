@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
 
     # ── App meta ──────────────────────────────────────────────────────────────
-    APP_NAME:    str  = "AI2 API – ChatKasir"
+    APP_NAME:    str  = "AI2 API - ChatKasir"
     APP_VERSION: str  = "1.1.0"
     DEBUG:       bool = False
 
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     MAX_SEQUENCE_LEN: int = 64
 
     # ── Data ──────────────────────────────────────────────────────────────────
-    SLANG_DICT_PATH: str = "../data/final/slang_utama.csv"
+    SLANG_DICT_PATH: str = "data/final/slang_utama.csv"
 
     # ── GDrive URLs — sumber download asset ───────────────────────────────────
     # Ubah nilai ini jika AI-1 (Rifan) upload ulang model ke GDrive yang baru.

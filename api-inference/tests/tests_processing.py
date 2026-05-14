@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.preprocessing import (
+from app.services.processing import (
     lowercase,
     normalize_slang,
     parse_whatsapp_chat,
@@ -134,27 +134,27 @@ MOCK_SLANG = {
 
 class TestNormalizeSlang:
     def test_kata_ada_di_kamus(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value=MOCK_SLANG):
+        with patch("app.services.processing.load_slang_dict", return_value=MOCK_SLANG):
             result = normalize_slang("bg mau psnnn nasi grngg")
         assert result == "abang mau pesan nasi goreng"
 
     def test_kata_tidak_ada_di_kamus_dipertahankan(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value=MOCK_SLANG):
+        with patch("app.services.processing.load_slang_dict", return_value=MOCK_SLANG):
             result = normalize_slang("mau nasi goreng")
         assert result == "mau nasi goreng"
 
     def test_kamus_kosong_kembalikan_teks_asli(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = normalize_slang("bg pesan nasi")
         assert result == "bg pesan nasi"
 
     def test_semua_kata_dinormalisasi(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value=MOCK_SLANG):
+        with patch("app.services.processing.load_slang_dict", return_value=MOCK_SLANG):
             result = normalize_slang("bg kak")
         assert result == "abang kakak"
 
     def test_string_kosong(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value=MOCK_SLANG):
+        with patch("app.services.processing.load_slang_dict", return_value=MOCK_SLANG):
             result = normalize_slang("")
         assert result == ""
 
@@ -217,23 +217,23 @@ RAW_CHAT_UPPERCASE = (
 
 class TestPrepareModelInput:
     def test_output_lowercase(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(RAW_CHAT_UPPERCASE)
         assert result == result.lower()
 
     def test_timestamp_tidak_ada_di_output(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(RAW_CHAT)
         assert "07.42" not in result
         assert "22/4/2026" not in result
 
     def test_sep_ada_di_output(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(RAW_CHAT)
         assert "[SEP]" in result
 
     def test_pembeli_di_kiri_penjual_di_kanan(self):
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(RAW_CHAT)
         parts = result.split("[SEP]")
         assert len(parts) == 2
@@ -242,14 +242,14 @@ class TestPrepareModelInput:
 
     def test_tanpa_penjual_tidak_ada_sep(self):
         raw = "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya"
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(raw)
         assert "[SEP]" not in result
 
     def test_slang_dinormalisasi(self):
         slang = {"bg": "abang"}
         raw = "[07.42, 22/4/2026] Pembeli: bg 2 nasi goreng ya"
-        with patch("app.services.preprocessing.load_slang_dict", return_value=slang):
+        with patch("app.services.processing.load_slang_dict", return_value=slang):
             result = prepare_model_input(raw)
         assert "abang" in result
         assert "bg" not in result
@@ -259,7 +259,7 @@ class TestPrepareModelInput:
             "[07.42, 22/4/2026] Pembeli: bang!! 2 nasi-goreng ya?\n"
             "[07.44, 22/4/2026] Penjual: oke kak: 10rb"
         )
-        with patch("app.services.preprocessing.load_slang_dict", return_value={}):
+        with patch("app.services.processing.load_slang_dict", return_value={}):
             result = prepare_model_input(raw)
         # Tidak boleh ada karakter selain a-z, 0-9, spasi, dan [SEP]
         import re

@@ -73,13 +73,13 @@ api-inference/
 │   ├── schemas/
 │   │   └── predict.py      # PredictRequest, OrderItem, PredictResponse
 │   ├── services/
-│   │   ├── model_loader.py   # Singleton TF model + NER extraction
-│   │   └── preprocessing.py  # Preprocessing + postprocessing pipeline
+│   │   ├── model_loader.py # Singleton TF model + NER extraction
+│   │   └── processing.py   # Preprocessing + postprocessing pipeline
 │   └── main.py             # FastAPI app, CORS, exception handlers
 ├── tests/
 │   ├── tests_predict.py    # Integration tests (30+ skenario)
 │   ├── test_stress.py      # Stress test 100 request paralel
-│   └── teats_preprocessing.py
+│   └── test_preprocessing.py
 ├── .env.example
 ├── requirements.txt
 └── API_CONTRACT.md
@@ -176,23 +176,23 @@ python tests/test_stress.py --url http://localhost:8000 --api-key changeme --n 1
 5. Space akan otomatis build menggunakan `Dockerfile` dan tersedia di:
    `https://<username>-chatkasir-api.hf.space`
 
-# ── Security ──────────────────────────────────────────────────────────────────
+# Security 
 # WAJIB diganti sebelum deploy. Set sebagai HF Spaces Secret (Settings → Secrets).
 API_KEY=changeme
 
-# ── Model (path relatif dari dalam container) ─────────────────────────────────
+# Model (path relatif dari dalam container) 
 # Letakkan file model di folder models/ lalu commit ke repo HF Spaces
 MODEL_PATH=models/chatkasir_model.keras
 TOKENIZER_PATH=models/tokenizer.json
 MAX_SEQUENCE_LEN=64
 
-# ── Data ──────────────────────────────────────────────────────────────────────
+# Data 
 SLANG_DICT_PATH=data/final/slang_utama.csv
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# CORS 
 # Ganti dengan domain frontend production (FS-1 Alfan)
 # Contoh: ALLOWED_ORIGINS=["https://chatkasir.netlify.app"]
 ALLOWED_ORIGINS=["*"]
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# App
 DEBUG=false

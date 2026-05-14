@@ -49,7 +49,7 @@ def download_assets():
 async def lifespan(app: FastAPI):
     """Startup: download assets → muat model → muat slang. Shutdown: lepas model."""
     from app.services.model_loader import ModelLoader
-    from app.services.preprocessing import load_slang_dict
+    from app.services.processing import load_slang_dict
 
     download_assets()
     ModelLoader.get_instance()
