@@ -17,12 +17,12 @@ COPY . .
 # Ini penting karena aplikasi kita akan mendownload file dari Google Drive
 ENV SLANG_DICT_PATH="data/final/slang_utama.csv"
 
-# Membuat folder untuk tempat menyimpan model dan kamus slang
-RUN mkdir -p models data/final
+# Membuat folder untuk tempat menyimpan model, kamus slang, dan CACHE untuk gdown
+RUN mkdir -p models data/final /.cache
 
 # Hugging Face Spaces secara default menggunakan user dengan ID 1000.
-# Kita perlu memberikan hak akses agar aplikasi bisa menyimpan file download.
-RUN chown -R 1000:1000 /code
+# Kita perlu memberikan hak akses agar aplikasi bisa menyimpan file download & cache.
+RUN chown -R 1000:1000 /code /.cache
 
 # Beralih menggunakan user ID 1000 untuk alasan keamanan
 USER 1000

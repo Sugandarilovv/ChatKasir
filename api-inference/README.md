@@ -1,44 +1,31 @@
-# AI2 API
+---
+title: Chatkasir Ai
+emoji: 📊
+colorFrom: blue
+colorTo: gray
+sdk: docker
+pinned: false
+license: mit
+short_description: AI model for transaction chat extraction
+---
 
-FastAPI inference service that wraps a TensorFlow / Keras model behind a secure REST API.
+# AI-2 Inference API — ChatKasir
 
-## Quick Start
+FastAPI yang menerima raw chat WhatsApp dari FS-2 (Reihan), menjalankan preprocessing, inferensi model AI-1 (Rifan), dan postprocessing, lalu mengembalikan hasil transaksi ke backend.
 
-```bash
-# 1. Clone & enter directory
-git clone <repo-url> ai2-api && cd ai2-api
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env – set API_KEY and MODEL_PATH
-
-# 4. Place your model
-cp /path/to/your/model.keras models/model.keras
-
-# 5. Run
-uvicorn app.main:app --reload
-```
-
-API docs available at `http://localhost:8000/docs`
-
-## Running Tests
-
-```bash
-pytest tests/ -v
-```
+---
 
 ## Daftar Isi
 
-1. [Arsitektur & Alur](#arsitektur--alur)
-2. [Struktur Folder](#struktur-folder)
-3. [Cara Menjalankan Lokal](#cara-menjalankan-lokal)
-4. [Environment Variables](#environment-variables)
-5. [Edge Cases yang Ditangani](#edge-cases-yang-ditangani)
-6. [Testing](#testing)
-7. [Deploy ke Hugging Face Spaces](#deploy-ke-hugging-face-spaces)
+- [AI-2 Inference API — ChatKasir](#ai-2-inference-api--chatkasir)
+  - [Daftar Isi](#daftar-isi)
+  - [Arsitektur \& Alur](#arsitektur--alur)
+  - [Struktur Folder](#struktur-folder)
+  - [Cara Menjalankan Lokal](#cara-menjalankan-lokal)
+  - [Environment Variables](#environment-variables)
+  - [Edge Cases yang Ditangani](#edge-cases-yang-ditangani)
+  - [Testing](#testing)
+  - [Deploy ke Hugging Face Spaces](#deploy-ke-hugging-face-spaces)
 
 ---
 
@@ -73,13 +60,14 @@ api-inference/
 │   ├── schemas/
 │   │   └── predict.py      # PredictRequest, OrderItem, PredictResponse
 │   ├── services/
-│   │   ├── model_loader.py # Singleton TF model + NER extraction
-│   │   └── processing.py   # Preprocessing + postprocessing pipeline
+│   │   ├── model_loader.py   # Singleton TF model + NER extraction
+│   │   └── processing.py  # Preprocessing + postprocessing pipeline
 │   └── main.py             # FastAPI app, CORS, exception handlers
 ├── tests/
 │   ├── tests_predict.py    # Integration tests (30+ skenario)
 │   ├── test_stress.py      # Stress test 100 request paralel
-│   └── test_preprocessing.py
+│   └── tests_processing.py
+├── Dockerfile              # Untuk deploy ke Hugging Face Spaces
 ├── .env.example
 ├── requirements.txt
 └── API_CONTRACT.md
@@ -97,10 +85,10 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit MODEL_PATH, TOKENIZER_PATH, API_KEY di .env
 
-uvicorn app.main:app --reload --port 7860
+uvicorn app.main:app --reload --port 8000
 ```
 
-Dokumentasi interaktif: `http://localhost:7860/docs`
+Dokumentasi interaktif: `http://localhost:8000/docs`
 
 ---
 
@@ -109,10 +97,13 @@ Dokumentasi interaktif: `http://localhost:7860/docs`
 | Variabel | Default | Keterangan |
 |---|---|---|
 | `API_KEY` | `changeme` | **Wajib diganti** sebelum deploy |
-| `MODEL_PATH` | `models/chatkasir_model.keras` | Path ke model Keras AI-1 |
+| `MODEL_PATH` | `models/model.keras` | Path ke model Keras AI-1 |
 | `TOKENIZER_PATH` | `models/tokenizer.json` | Path ke tokenizer JSON |
 | `MAX_SEQUENCE_LEN` | `64` | Harus sama dengan saat training |
-| `SLANG_DICT_PATH` | `../data/final/slang_utama.csv` | Kamus slang dari DS-1 (Faradi) |
+| `SLANG_DICT_PATH` | `data/final/slang_utama.csv` | Kamus slang dari DS-1 (Faradi) |
+| `GDRIVE_MODEL_URL` | *(lihat config.py)* | URL Google Drive untuk auto-download model |
+| `GDRIVE_TOKENIZER_URL` | *(lihat config.py)* | URL Google Drive untuk auto-download tokenizer |
+| `GDRIVE_SLANG_URL` | *(lihat config.py)* | URL Google Drive untuk auto-download slang dict |
 | `ALLOWED_ORIGINS` | `["*"]` | CORS origins (ganti saat production) |
 | `DEBUG` | `false` | Mode debug FastAPI |
 
@@ -147,22 +138,27 @@ pytest tests/test_stress.py -m stress -v
 python tests/test_stress.py --url http://localhost:8000 --api-key changeme --n 100 --workers 10
 ```
 
+---
+
 ## Deploy ke Hugging Face Spaces
 
 1. Buat Space baru di [huggingface.co/spaces](https://huggingface.co/spaces), pilih **Docker** sebagai SDK.
 
 2. Push repo ke Space:
    ```bash
-   git remote add space https://huggingface.co/spaces/<username>/chatkasir-api
+   git remote add space https://huggingface.co/spaces/<username>/chatkasir-ai-api
    git subtree push --prefix api-inference space main
    ```
 
-3. Upload file model ke Space (via Git LFS atau HF Hub):
+3. Model & tokenizer akan **otomatis didownload** dari Google Drive saat Space pertama kali start (via `download_assets()` di `main.py`). Pastikan URL di `config.py` atau environment variable sudah benar:
+   - `GDRIVE_MODEL_URL`
+   - `GDRIVE_TOKENIZER_URL`
+   - `GDRIVE_SLANG_URL`
+
+   Atau, upload manual via Git LFS:
    ```bash
-   # Install git-lfs
    git lfs install
    git lfs track "*.keras"
-   # Copy model ke folder models/
    cp ../../ai-model/assets/models/chatkasir_model.keras models/
    cp ../../ai-model/assets/tokenizers/tokenizer.json models/
    git add models/ .gitattributes
@@ -174,25 +170,4 @@ python tests/test_stress.py --url http://localhost:8000 --api-key changeme --n 1
    - `API_KEY` → key rahasia untuk autentikasi FS-2
 
 5. Space akan otomatis build menggunakan `Dockerfile` dan tersedia di:
-   `https://<username>-chatkasir-api.hf.space`
-
-# Security 
-# WAJIB diganti sebelum deploy. Set sebagai HF Spaces Secret (Settings → Secrets).
-API_KEY=changeme
-
-# Model (path relatif dari dalam container) 
-# Letakkan file model di folder models/ lalu commit ke repo HF Spaces
-MODEL_PATH=models/chatkasir_model.keras
-TOKENIZER_PATH=models/tokenizer.json
-MAX_SEQUENCE_LEN=64
-
-# Data 
-SLANG_DICT_PATH=data/final/slang_utama.csv
-
-# CORS 
-# Ganti dengan domain frontend production (FS-1 Alfan)
-# Contoh: ALLOWED_ORIGINS=["https://chatkasir.netlify.app"]
-ALLOWED_ORIGINS=["*"]
-
-# App
-DEBUG=false
+   `https://<username>-chatkasir-ai.hf.space`

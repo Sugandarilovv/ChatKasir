@@ -6,7 +6,7 @@ uvicorn[standard]>=0.29.0
 pydantic-settings>=2.2.0
 
 # ML / inference
-tensorflow>=2.16.0
+tensorflow>=2.17.0
 numpy>=1.26.0
 
 # Tokenizer (HuggingFace WordPiece — dipakai AI-1)
