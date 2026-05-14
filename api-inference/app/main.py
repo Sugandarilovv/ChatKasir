@@ -13,22 +13,13 @@ from app.routers import health, predict
 
 
 # ── Auto-download assets dari Google Drive ────────────────────────────────────
-
 def download_assets():
-    """
-    Download model, tokenizer, dan kamus slang dari Google Drive jika belum ada.
-    Dipanggil sekali saat startup — aman di-skip jika file sudah tersedia lokal.
+    import os
+    import gdown
+    import zipfile
+    import json
+    import shutil
 
-    URL diambil dari settings (config.py / .env) sehingga bisa diganti tanpa
-    menyentuh kode — cukup ubah GDRIVE_MODEL_URL, GDRIVE_TOKENIZER_URL, atau
-    GDRIVE_SLANG_URL di file .env.
-
-    Kenapa tetap pakai path lokal?
-      tf.keras.models.load_model() dan Tokenizer.from_file() hanya bisa
-      membaca file dari disk, bukan URL. Jadi alurnya selalu:
-        GDrive URL  →  download via gdown  →  simpan ke path lokal
-                    →  load dari path lokal
-    """
     os.makedirs("models", exist_ok=True)
     os.makedirs("data/final", exist_ok=True)
 
@@ -42,6 +33,43 @@ def download_assets():
             print(f"Downloading {path} dari {url} ...")
             gdown.download(url, path, quiet=False)
 
+            # === SCRIPT BEDAH MODEL (ANTI-BUG KERAS 3) ===
+            if path.endswith(".keras"):
+                print("Membedah file .keras untuk menghapus 'quantization_config'...")
+                temp_dir = "temp_keras_unzip"
+                with zipfile.ZipFile(path, 'r') as z:
+                    z.extractall(temp_dir)
+                
+                config_path = os.path.join(temp_dir, "config.json")
+                if os.path.exists(config_path):
+                    with open(config_path, "r") as f:
+                        config_data = json.load(f)
+                        
+                    # Fungsi rekursif untuk menghapus quantization_config di semua layer
+                    def clean_config(d):
+                        if isinstance(d, dict):
+                            d.pop("quantization_config", None)
+                            for k, v in d.items():
+                                clean_config(v)
+                        elif isinstance(d, list):
+                            for item in d:
+                                clean_config(item)
+                                
+                    clean_config(config_data)
+                    
+                    with open(config_path, "w") as f:
+                        json.dump(config_data, f)
+                
+                # Zip kembali model yang sudah bersih
+                os.remove(path)
+                with zipfile.ZipFile(path, 'w') as z:
+                    for root, _, files in os.walk(temp_dir):
+                        for file in files:
+                            filepath = os.path.join(root, file)
+                            arcname = os.path.relpath(filepath, temp_dir)
+                            z.write(filepath, arcname)
+                shutil.rmtree(temp_dir)
+                print("Bedah model selesai, siap digunakan!")
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
