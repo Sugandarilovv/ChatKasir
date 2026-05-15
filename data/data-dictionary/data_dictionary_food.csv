@@ -1,0 +1,2 @@
+"nama_kolom","tipe_data","jumlah_baris","nilai_kosong","nilai_unik","contoh_nilai","deskripsi","catatan"
+"name","string","18558","0","18558","abon | abon ayam | abon burger","Nama makanan atau minuman dalam bahasa Indonesia huruf kecil semua","Gabungan dari eriko-syah/indonesian-food (HuggingFace) dan ariqsyahalam/indonesia-food-delivery-gofood-product-list (Kaggle). Panjang nama 1-5 kata."
