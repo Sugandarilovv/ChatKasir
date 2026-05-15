@@ -1,0 +1,3 @@
+"nama_kolom","tipe_data","jumlah_baris","nilai_kosong","nilai_unik","contoh_nilai","deskripsi","catatan"
+"slang","string","1231","0","1231","aa | abanggg | abanggku","Kata slang atau singkatan yang umum digunakan dalam chat WhatsApp","Gabungan dari nahiar/indonesia-slang dan theonlydo/indonesia-slang (HuggingFace). Semua huruf kecil. Panjang 1-20 karakter."
+"formal","string","1231","0","552","kakak | abang | abangku","Bentuk baku atau formal dari kata slang yang bersesuaian","Digunakan oleh AI-2 (Denny) sebagai kamus normalisasi teks sebelum diproses model. Semua huruf kecil."
