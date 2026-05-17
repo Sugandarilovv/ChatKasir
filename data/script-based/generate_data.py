@@ -558,7 +558,7 @@ if __name__ == "__main__":
     print(df_single['product'].value_counts().head(5).to_string())
     print(f"  Preview:\n{df[['input_text','product','quantity','price_satuan','pattern']].head(5).to_string()}")
 
-    filename = os.path.join(OUTPUT_DIR, f'chatkasir_synthetic_v3.csv')
+    filename = os.path.join(OUTPUT_DIR, f'chatkasir_synthetic.csv')
     df.to_csv(filename, index=False)
     print(f"\n  Tersimpan -> {filename}")
     print("\nSELESAI.")
