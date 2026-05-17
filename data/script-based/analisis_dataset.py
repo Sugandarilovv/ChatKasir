@@ -8,7 +8,7 @@ import pandas as pd
 
 food_list = pd.read_csv('../final/food_utama.csv')['name'].dropna().str.lower().str.strip().tolist()
 
-filename = 'chatkasir_synthetic_v3.csv'
+filename = 'chatkasir_synthetic.csv'
 hasil_analisis = []
 
 try:
