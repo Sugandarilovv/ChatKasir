@@ -1,4 +1,2 @@
-dataset,total_baris,pattern_1,pattern_2,pattern_3,baris_tanpa_harga,produk_unik_ter_generate,total_produk_food_list,produk_belum_ter_generate
-synthetic_orders_weighted_10000.csv,10050,3922,3888,2240,1750,4975,18558,13583
-synthetic_orders_weighted_50000.csv,50250,19534,19573,11143,8750,6566,18558,11992
-synthetic_orders_weighted_100000.csv,100500,39179,39014,22307,17500,6585,18558,11973
+dataset,total_baris,pattern_1,pattern_2,pattern_3,pattern_4_majemuk,baris_tanpa_harga,produk_unik_efektif,total_produk_food_list,produk_belum_ter_generate
+chatkasir_synthetic_v3.csv,100000,31168,31026,17806,20000,33930,1000,18558,17558
