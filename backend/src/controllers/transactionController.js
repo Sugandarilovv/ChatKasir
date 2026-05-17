@@ -1,18 +1,8 @@
 const { supabase } = require("../config/supabase");
 
-// cek health dulu terlebih dahulu
-/**const health = await fetch(`${process.env.AI_API_URL}/health`, {
-      headers: { "X-API-Key": process.env.AI_API_KEY },
-    });
-
-    if (!health.ok) {
-      console.error("AI API tidak siap");
-      return { status: "failed", predictions: [] };
-    }**/
-
 const callAIExtract = async (text) => {
   try {
-    // health check — TANPA API key
+    // coba health check — TANPA API key
     const health = await fetch(`${process.env.AI_API_URL}/health`);
     const healthData = await health.json();
     console.log("Health check:", healthData);
