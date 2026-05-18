@@ -72,8 +72,68 @@ const login = async (req, res) => {
   });
 };
 
-module.exports = {
-  register,
-  login,
-  verifyOtp,
+// POST /auth/forgot-password — kirim OTP ke email
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email wajib diisi" });
+  }
+
+  const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
+    emailRedirectTo: undefined,
+  });
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  return res.status(200).json({
+    message: "Kode OTP sudah dikirim ke email kamu",
+  });
 };
+
+// POST /auth/reset-password — verifikasi OTP + set password baru
+const resetPassword = async (req, res) => {
+  const { email, token, new_password } = req.body;
+
+  if (!email || !token || !new_password) {
+    return res.status(400).json({
+      error: "Email, token OTP, dan password baru wajib diisi",
+    });
+  }
+
+  if (new_password.length < 6) {
+    return res.status(400).json({
+      error: "Password baru minimal 6 karakter",
+    });
+  }
+
+  // Verifikasi OTP dulu
+  const { error: otpError } = await supabaseAuth.auth.verifyOtp({
+    email,
+    token,
+    type: "recovery", // ← beda dengan signup, ini pakai 'recovery'
+  });
+
+  if (otpError) {
+    return res
+      .status(400)
+      .json({ error: "OTP tidak valid atau sudah expired" });
+  }
+
+  // Update password
+  const { error: updateError } = await supabaseAuth.auth.updateUser({
+    password: new_password,
+  });
+
+  if (updateError) {
+    return res.status(400).json({ error: updateError.message });
+  }
+
+  return res.status(200).json({
+    message: "Password berhasil diubah, silakan login dengan password baru",
+  });
+};
+
+module.exports = { register, login, verifyOtp, forgotPassword, resetPassword };

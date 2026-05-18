@@ -1,7 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
-const { register, login, verifyOtp } = require("../controllers/authController");
+const {
+  register,
+  login,
+  verifyOtp,
+  forgotPassword,
+  resetPassword,
+} = require("../controllers/authController");
 
 // Validasi untuk Register
 const registerValidation = [
@@ -15,5 +21,7 @@ const registerValidation = [
 router.post("/register", registerValidation, register);
 router.post("/login", login);
 router.post("/verify-otp", verifyOtp);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;
