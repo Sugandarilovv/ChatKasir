@@ -157,3 +157,14 @@ __pycache__/
 .python-version
 pyproject.toml
 uv.lock
+
+# dataset
+*.npz
+
+# model biner
+*.keras
+*.h5
+*.pb
+
+# folder SavedModel
+ai-model/assets/models/chatkasir_saved_model/
