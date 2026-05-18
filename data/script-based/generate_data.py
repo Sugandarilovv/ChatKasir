@@ -11,6 +11,10 @@ import random
 #   [FIX-1] Diversifikasi TEMPLATES_PEMBELI — tambah pola PRODUK-di-depan
 #   [FIX-2] Fungsi generate_order_majemuk (Pola 4 / Multi-Item)
 #   [FIX-3] Alokasi 20% data untuk Pola Majemuk di generate_dataset
+#   [FIX-4] MODIFIER & QTY_STRING — noise/customization + ejaan qty (50:50)
+#   [FIX-5] TEMPLATES_PEMBELI: pola pembeli sebut harga (B-PRICE di sisi pembeli)
+#   [FIX-6] TEMPLATES_MAJEMUK: pola brutal tanpa kata hubung
+#   [FIX-7] get_random_qty() dipakai di semua loop generate_dataset
 # ============================================================
 
 # ============================================================
@@ -110,27 +114,47 @@ SAPAAN  = ['bang', 'kak', 'kk', 'bg', 'mas', 'mbak', 'min', 'bu', 'pak', '']
 PENUTUP = ['ya', 'dong', 'kak', 'ya kak', 'dong kak', 'nih', '']
 
 # ============================================================
+# [FIX BARU] Tambahan Noise/Modifier & QTY String
+# ============================================================
+MODIFIER = ['', 'level dewa', 'pedes mampus', 'gak pake bawang', 'esnya dikit aja',
+            'dibungkus', 'makan sini', 'pedas sedang', 'anget aja']
+QTY_STRING = ['satu', 'dua', 'seporsi', 'sebungkus', 'setengah', 'tiga piring',
+              'segelas', 'sebotol']
+
+def get_random_qty():
+    """Fungsi untuk mix angka dan ejaan string (50:50)"""
+    if random.random() < 0.5:
+        return str(random.randint(1, 10))
+    else:
+        return random.choice(QTY_STRING)
+
+# ============================================================
 # [FIX-1] TEMPLATES_PEMBELI — ditambah pola PRODUK-di-depan
 # ============================================================
 TEMPLATES_PEMBELI = [
     # --- POLA LAMA: QTY di depan ---
-    "{sapaan} {qty} {produk} {penutup}",
-    "{sapaan} mau pesen {qty} {produk} {penutup}",
-    "kak mau order {qty} {produk} {penutup}",
-    "minta {qty} {produk} {penutup}",
-    "{qty} {produk} {penutup}",
-    "pesan {qty} {produk} {penutup}",
-    "beli {qty} {produk} {penutup}",
-    "{sapaan} bisa pesan {qty} {produk} {penutup}",
-    "mau {qty} {produk} {penutup}",
-    "boleh pesan {qty} {produk} {penutup}",
+    "{sapaan} {qty} {produk} {modifier} {penutup}",
+    "{sapaan} mau pesen {qty} {produk} {modifier} {penutup}",
+    "kak mau order {qty} {produk} {modifier} {penutup}",
+    "minta {qty} {produk} {modifier} {penutup}",
+    "{qty} {produk} {modifier} {penutup}",
+    "pesan {qty} {produk} {modifier} {penutup}",
+    "beli {qty} {produk} {modifier} {penutup}",
+    "{sapaan} bisa pesan {qty} {produk} {modifier} {penutup}",
+    "mau {qty} {produk} {modifier} {penutup}",
+    "boleh pesan {qty} {produk} {modifier} {penutup}",
 
     # --- POLA BARU: PRODUK di depan (Mengatasi Posisi Terbalik) ---
-    "{sapaan} order {produk} {qty} {penutup}",
+    "{sapaan} order {produk} {modifier} {qty} {penutup}",
     "pesen {produk} nya {qty} porsi {penutup}",
-    "{sapaan} {produk} {qty} {penutup}",
+    "{sapaan} {produk} {modifier} {qty} {penutup}",
     "{produk} {qty} bungkus ya {sapaan}",
     "mau {produk} jumlahnya {qty} {penutup}",
+
+    # --- [FIX BARU] POLA PEMBELI SEBUT HARGA ---
+    "{sapaan} pesen {produk} {modifier} yang harganya {harga} {qty} porsi {penutup}",
+    "{sapaan} {produk} {qty} bungkus, beneran {harga} kan {penutup}",
+    "mau {qty} {produk} {modifier} budget {harga} {penutup}",
 ]
 
 TEMPLATES_PENJUAL = [
@@ -148,16 +172,16 @@ TEMPLATES_PENJUAL = [
 # ============================================================
 TEMPLATES_TANPA_HARGA_PEMBELI = [
     # --- POLA LAMA ---
-    "{sapaan} {qty} {produk} {penutup}",
-    "kak mau pesen {qty} {produk} {penutup}",
-    "minta {qty} {produk} {penutup}",
-    "{qty} {produk} {penutup}",
-    "pesan {qty} {produk} {penutup}",
+    "{sapaan} {qty} {produk} {modifier} {penutup}",
+    "kak mau pesen {qty} {produk} {modifier} {penutup}",
+    "minta {qty} {produk} {modifier} {penutup}",
+    "{qty} {produk} {modifier} {penutup}",
+    "pesan {qty} {produk} {modifier} {penutup}",
 
     # --- POLA BARU: PRODUK di depan ---
-    "{sapaan} order {produk} {qty} {penutup}",
+    "{sapaan} order {produk} {modifier} {qty} {penutup}",
     "pesen {produk} nya {qty} porsi {penutup}",
-    "{sapaan} {produk} {qty} {penutup}",
+    "{sapaan} {produk} {modifier} {qty} {penutup}",
     "mau {produk} jumlahnya {qty} {penutup}",
 ]
 
@@ -175,12 +199,17 @@ TEMPLATES_TANPA_HARGA_PENJUAL = [
 # [FIX-2] TEMPLATES PESANAN MAJEMUK (Multi-Item)
 # ============================================================
 TEMPLATES_MAJEMUK_PEMBELI = [
+    # --- POLA LAMA ---
     "{sapaan} pesen {qty1} {produk1} dan {qty2} {produk2} {penutup}",
     "{sapaan} {produk1} {qty1} sama {produk2} {qty2} {penutup}",
     "order {qty1} {produk1}, terus {produk2} nya {qty2} {penutup}",
     "{produk1} {qty1} bungkus dan {qty2} {produk2} {penutup}",
     "{sapaan} mau {qty1} {produk1} sama {qty2} {produk2} {penutup}",
     "pesan {produk1} {qty1} porsi dan {produk2} {qty2} porsi {penutup}",
+
+    # --- [FIX BARU] POLA BRUTAL/TANPA KATA HUBUNG ---
+    "{produk1} {modifier} {qty1}, {produk2} {qty2} {penutup}",
+    "pesan {qty1} {produk1} {qty2} {produk2} {penutup}",
 ]
 
 TEMPLATES_MAJEMUK_PENJUAL = [
@@ -344,14 +373,18 @@ def apply_slang(text: str, formal_to_slang: dict) -> str:
 # GENERATE SATU BARIS (POLA 1-3)
 # ============================================================
 def generate_order_dengan_harga(produk, qty, price, pattern):
-    sapaan  = random.choice(SAPAAN)
-    penutup = random.choice(PENUTUP)
-    harga   = format_price_text(price)
-    total   = format_price_text(price * qty)
-    pembeli = random.choice(TEMPLATES_PEMBELI).format(
-        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup
+    sapaan   = random.choice(SAPAAN)
+    penutup  = random.choice(PENUTUP)
+    modifier = random.choice(MODIFIER)  # [FIX BARU] inject modifier/noise
+    harga    = format_price_text(price)
+    # Qty bisa berupa int (untuk kalkulasi total) atau string ejaan
+    qty_int  = qty if isinstance(qty, int) else 1  # fallback qty_int untuk total
+    total    = format_price_text(price * qty_int)
+    pembeli  = random.choice(TEMPLATES_PEMBELI).format(
+        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup,
+        modifier=modifier, harga=harga
     ).strip()
-    penjual = random.choice(TEMPLATES_PENJUAL).format(
+    penjual  = random.choice(TEMPLATES_PENJUAL).format(
         produk=produk, harga=harga, total=total
     ).strip()
     return {
@@ -363,10 +396,11 @@ def generate_order_dengan_harga(produk, qty, price, pattern):
     }
 
 def generate_order_tanpa_harga(produk, qty, pattern):
-    sapaan  = random.choice(SAPAAN)
-    penutup = random.choice(PENUTUP)
-    pembeli = random.choice(TEMPLATES_TANPA_HARGA_PEMBELI).format(
-        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup
+    sapaan   = random.choice(SAPAAN)
+    penutup  = random.choice(PENUTUP)
+    modifier = random.choice(MODIFIER)  # [FIX BARU] inject modifier/noise
+    pembeli  = random.choice(TEMPLATES_TANPA_HARGA_PEMBELI).format(
+        sapaan=sapaan, qty=qty, produk=produk, penutup=penutup, modifier=modifier
     ).strip()
     penjual    = random.choice(TEMPLATES_TANPA_HARGA_PENJUAL)
     input_text = f"{pembeli} [SEP] {penjual}" if penjual else pembeli
@@ -382,16 +416,19 @@ def generate_order_tanpa_harga(produk, qty, pattern):
 # [FIX-2] GENERATE PESANAN MAJEMUK (POLA 4 — 2 PRODUK SEKALIGUS)
 # ============================================================
 def generate_order_majemuk(produk1, qty1, price1, produk2, qty2, price2):
-    sapaan  = random.choice(SAPAAN)
-    penutup = random.choice(PENUTUP)
+    sapaan   = random.choice(SAPAAN)
+    penutup  = random.choice(PENUTUP)
+    modifier = random.choice(MODIFIER)  # [FIX BARU] inject modifier/noise
 
     harga1      = format_price_text(price1)
     harga2      = format_price_text(price2)
-    total_semua = format_price_text((price1 * qty1) + (price2 * qty2))
+    qty1_int    = qty1 if isinstance(qty1, int) else 1
+    qty2_int    = qty2 if isinstance(qty2, int) else 1
+    total_semua = format_price_text((price1 * qty1_int) + (price2 * qty2_int))
 
     pembeli = random.choice(TEMPLATES_MAJEMUK_PEMBELI).format(
         sapaan=sapaan, qty1=qty1, produk1=produk1,
-        qty2=qty2, produk2=produk2, penutup=penutup
+        qty2=qty2, produk2=produk2, penutup=penutup, modifier=modifier
     ).strip()
 
     penjual = random.choice(TEMPLATES_MAJEMUK_PENJUAL).format(
@@ -403,8 +440,8 @@ def generate_order_majemuk(produk1, qty1, price1, produk2, qty2, price2):
         "input_text"   : f"{pembeli} [SEP] {penjual}",
         "product"      : f"{produk1} & {produk2}",
         "quantity"     : f"{qty1} & {qty2}",
-        "price_satuan" : -1,   # Ditandai khusus untuk relasi majemuk
-        "pattern"      : 4,    # Penanda pola baru (Majemuk/Multi-Item)
+        "price_satuan" : -1,
+        "pattern"      : 4,
     }
 
 # ============================================================
@@ -440,21 +477,21 @@ def generate_dataset(weighted_list, formal_to_slang, target_rows,
     print("  Generating Pola 1...")
     for _ in range(n_pola1):
         rows.append(generate_order_dengan_harga(
-            random.choice(weighted_list), random.randint(1, 10),
+            random.choice(weighted_list), get_random_qty(),
             random.choice(harga_range), pattern=1
         ))
 
     print("  Generating Pola 2...")
     for _ in range(n_pola2):
         rows.append(generate_order_dengan_harga(
-            random.choice(weighted_list), random.randint(1, 10),
+            random.choice(weighted_list), get_random_qty(),
             random.choice(harga_range), pattern=2
         ))
 
     print("  Generating Pola 3 (slang)...")
     for _ in range(n_pola3):
         row = generate_order_dengan_harga(
-            random.choice(weighted_list), random.randint(1, 10),
+            random.choice(weighted_list), get_random_qty(),
             random.choice(harga_range), pattern=3
         )
         row["input_text"] = apply_slang(row["input_text"], formal_to_slang)
@@ -463,7 +500,7 @@ def generate_dataset(weighted_list, formal_to_slang, target_rows,
     print("  Generating baris tanpa harga...")
     for _ in range(n_no_harga):
         rows.append(generate_order_tanpa_harga(
-            random.choice(weighted_list), random.randint(1, 10),
+            random.choice(weighted_list), get_random_qty(),
             pattern=random.choice([1, 2, 3])
         ))
 
@@ -477,8 +514,8 @@ def generate_dataset(weighted_list, formal_to_slang, target_rows,
             p2 = random.choice(weighted_list)
 
         rows.append(generate_order_majemuk(
-            p1, random.randint(1, 5), random.choice(harga_range),
-            p2, random.randint(1, 5), random.choice(harga_range)
+            p1, get_random_qty(), random.choice(harga_range),
+            p2, get_random_qty(), random.choice(harga_range)
         ))
 
     random.shuffle(rows)
@@ -558,7 +595,18 @@ if __name__ == "__main__":
     print(df_single['product'].value_counts().head(5).to_string())
     print(f"  Preview:\n{df[['input_text','product','quantity','price_satuan','pattern']].head(5).to_string()}")
 
-    filename = os.path.join(OUTPUT_DIR, f'chatkasir_synthetic.csv')
-    df.to_csv(filename, index=False)
-    print(f"\n  Tersimpan -> {filename}")
+    FINAL_DIR = '../final'
+    FNAME     = 'chatkasir_synthetic.csv'
+ 
+    # Simpan ke folder script-based (lokal)
+    path_local = os.path.join(OUTPUT_DIR, FNAME)
+    df.to_csv(path_local, index=False)
+    print(f"\n  Tersimpan -> {path_local}")
+ 
+    # Simpan salinan ke folder final
+    os.makedirs(FINAL_DIR, exist_ok=True)
+    path_final = os.path.join(FINAL_DIR, FNAME)
+    df.to_csv(path_final, index=False)
+    print(f"  Tersimpan -> {path_final}")
+    
     print("\nSELESAI.")
