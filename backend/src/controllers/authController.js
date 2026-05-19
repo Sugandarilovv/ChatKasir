@@ -94,4 +94,46 @@ const forgotPassword = async (req, res) => {
   });
 };
 
-module.exports = { register, login, verifyOtp, forgotPassword };
+// PUT /auth/update-password
+const updatePassword = async (req, res) => {
+  const { access_token, new_password } = req.body;
+
+  if (!access_token || !new_password) {
+    return res.status(400).json({
+      error: "Access token dan password baru wajib diisi",
+    });
+  }
+
+  if (new_password.length < 6) {
+    return res.status(400).json({
+      error: "Password minimal 6 karakter",
+    });
+  }
+
+  // Set session dulu pakai token dari magic link
+  const { error: sessionError } = await supabaseAuth.auth.setSession({
+    access_token,
+    refresh_token: "",
+  });
+
+  if (sessionError) {
+    return res
+      .status(401)
+      .json({ error: "Token tidak valid atau sudah expired" });
+  }
+
+  // Update password
+  const { error } = await supabaseAuth.auth.updateUser({
+    password: new_password,
+  });
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  return res.status(200).json({
+    message: "Password berhasil diperbarui, silakan login dengan password baru",
+  });
+};
+
+module.exports = { register, login, verifyOtp, forgotPassword, updatePassword };
