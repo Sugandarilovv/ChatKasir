@@ -76,12 +76,12 @@ def mock_predict_nasi_goreng():
     """qty=2, price=10000 → total=20000 → cocok chat → HIGH."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "nasi goreng",
             "quantity": 2,
             "price_satuan": 10000,
             "avg_conf_softmax": 95.0,
-        },
+        }],
     ):
         yield
 
@@ -90,12 +90,12 @@ def mock_predict_nasi_goreng():
 def mock_predict_no_price():
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "jus alpukat",
             "quantity": 1,
             "price_satuan": None,
             "avg_conf_softmax": 88.0,
-        },
+        }],
     ):
         yield
 
@@ -104,12 +104,12 @@ def mock_predict_no_price():
 def mock_predict_unknown():
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "unknown",
             "quantity": 1,
             "price_satuan": None,
             "avg_conf_softmax": 0.0,
-        },
+        }],
     ):
         yield
 
@@ -185,12 +185,12 @@ def test_high_via_softmax_when_no_total_in_chat():
     """Tidak ada total di chat → pakai softmax. avg_conf=95 ≥ 90 → HIGH."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "es teh",
             "quantity": 3,
             "price_satuan": 5000,
             "avg_conf_softmax": 95.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
                         headers=VALID_HEADERS)
@@ -202,12 +202,12 @@ def test_medium_via_softmax_70_to_89():
     """avg_conf=80 (70-89) → MEDIUM."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "es teh",
             "quantity": 3,
             "price_satuan": 5000,
             "avg_conf_softmax": 80.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
                         headers=VALID_HEADERS)
@@ -218,12 +218,12 @@ def test_low_via_softmax_below_70():
     """avg_conf=65 < 70 → LOW."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "es teh",
             "quantity": 3,
             "price_satuan": 5000,
             "avg_conf_softmax": 65.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
                         headers=VALID_HEADERS)
@@ -236,12 +236,12 @@ def test_low_confidence_total_mismatch():
     """Business Override: total chat 25rb ≠ prediksi 2×15000=30000 → LOW."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "ayam bakar",
             "quantity": 2,
             "price_satuan": 15000,
             "avg_conf_softmax": 92.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_TOTAL_MISMATCH},
                         headers=VALID_HEADERS)
@@ -331,12 +331,12 @@ def test_jadinya_detected_as_total():
     """'jadinya 24rb' harus dikenali sebagai total → cocokkan dengan prediksi."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "mie ayam",
             "quantity": 2,
             "price_satuan": 12000,
             "avg_conf_softmax": 91.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_JADINYA},
                         headers=VALID_HEADERS)
@@ -351,12 +351,12 @@ def test_semuanya_detected_as_total():
     """'semuanya 15rb' harus dikenali sebagai total."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
-        return_value={
+        return_value=[{
             "product": "es teh",
             "quantity": 3,
             "price_satuan": 5000,
             "avg_conf_softmax": 91.0,
-        },
+        }],
     ):
         r = client.post("/predict", json={"raw_text": RAW_CHAT_SEMUANYA},
                         headers=VALID_HEADERS)

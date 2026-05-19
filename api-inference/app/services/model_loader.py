@@ -129,14 +129,17 @@ def _parse_price_from_text(text: str) -> Optional[int]:
 
 
 def _parse_qty_from_text(text: str) -> int:
-    """
-    Parse nilai kuantitas dari teks hasil decode token B-QTY/I-QTY.
+    """Parse nilai kuantitas dari teks, mendukung angka dan ejaan huruf."""
+    kamus_huruf = {
+        "satu": 1, "sebiji": 1, "seporsi": 1, "sebungkus": 1, "segelas": 1, "sebotol": 1,
+        "dua": 2, "loro": 2, "tiga": 3, "telu": 3, "empat": 4, "papat": 4, "lima": 5, "limo": 5,
+        "setengah": 1
+    }
+    teks_bersih = text.lower().strip()
+    if teks_bersih in kamus_huruf:
+        return kamus_huruf[teks_bersih]
 
-    Returns
-    -------
-    Jumlah sebagai int (minimal 1).
-    """
-    match = re.search(r'\d+', text.strip())
+    match = re.search(r'\d+', teks_bersih)
     return max(1, int(match.group())) if match else 1
 
 
@@ -214,8 +217,8 @@ class ModelLoader:
         Jalankan inferensi untuk satu teks bersih.
 
         Model V2 mengeluarkan 1 Matriks NER besar (shape: (1, seq_len, 7)).
-        Fungsi ini men-decode 7 tag lalu menjalankan Algoritma Grouping/Pairing
-        untuk menghasilkan list pesanan multi-item.
+        Menggunakan teknik Independent Extraction 3-Fase: panen entitas ke list
+        terpisah, lalu mapping berdasarkan indeks.
 
         Returns
         -------
@@ -226,164 +229,113 @@ class ModelLoader:
               "price_satuan":     int | None, # None jika harga tidak disebutkan
               "avg_conf_softmax": float,      # rata-rata confidence NER (0-100)
             }
-
-        Notes
-        -----
-        - price_satuan dibulatkan ke kelipatan Rp500 terdekat
-        - avg_conf_softmax dipakai postprocess untuk confidence saat tidak ada
-          total di chat (HIGH >= 90, MEDIUM >= 70, LOW < 70)
-        - Flush terjadi saat bertemu B-PROD baru (sudah ada produk sebelumnya)
-          atau B-QTY baru (sudah ada qty sebelumnya) sesuai Tahap 2 tugas Denny
         """
         if self._model is None:
             raise ModelNotLoadedError()
         if self._tokenizer is None:
-            raise ModelNotLoadedError(
-                "Tokenizer belum dimuat — pastikan tokenizer.json tersedia."
-            )
+            raise ModelNotLoadedError("Tokenizer belum dimuat.")
 
         try:
             import numpy as np
 
-            # ── Tokenisasi & padding (HuggingFace WordPiece) ─────────────────
+            # Tokenisasi (HuggingFace WordPiece)
             encoded = self._tokenizer.encode(teks_bersih)
-            ids     = encoded.ids
-
+            ids = encoded.ids
             if len(ids) > settings.MAX_SEQUENCE_LEN:
                 ids = ids[:settings.MAX_SEQUENCE_LEN]
             else:
                 ids = ids + [0] * (settings.MAX_SEQUENCE_LEN - len(ids))
-
             padded = np.array([ids])
 
-            # ── Inferensi: Model V2 → 1 NER Matrix ───────────────────────────
-            # Model V2 output shape: (1, seq_len, 7) — satu matriks, bukan 3
+            # Inferensi Model
             ner_probs = self._model.predict(padded, verbose=0)
+            tag_ids = np.argmax(ner_probs[0], axis=-1)
+            probs = np.max(ner_probs[0], axis=-1)
 
-            tag_ids = np.argmax(ner_probs[0], axis=-1)   # shape: (seq_len,)
-            probs   = np.max(ner_probs[0], axis=-1)       # shape: (seq_len,)
+            # FASE 1 & 2: Ekstraksi Independen ke List Terpisah
+            list_produk, list_qty, list_harga = [], [], []
+            list_conf = []  # Menyimpan confidence rata-rata per produk
 
-            # ── Algoritma Grouping / Pairing ──────────────────────────────────
-            list_pesanan: List[dict] = []
+            temp_ids, temp_confs = [], []
+            current_tag = None
 
-            # Variabel sementara untuk item yang sedang dikumpulkan
-            temp_prod_ids:   List[int]   = []
-            temp_qty_ids:    List[int]   = []
-            temp_price_ids:  List[int]   = []
-            temp_prod_confs: List[float] = []
+            def _simpan_buffer(ids_array, conf_array, tag_jenis):
+                if not ids_array: return
+                decoded_text = self._tokenizer.decode(ids_array).strip()
+                avg_conf = float(np.mean(conf_array) * 100) if conf_array else 0.0
 
-            def _flush_item() -> None:
-                """
-                Gabungkan akumulasi temp saat ini menjadi 1 dict pesanan
-                dan masukkan ke list_pesanan, lalu reset semua temp.
-                """
-                # Tidak ada data sama sekali → skip
-                if not temp_prod_ids and not temp_qty_ids:
-                    return
+                if tag_jenis == "PROD":
+                    list_produk.append(decoded_text.title())
+                    list_conf.append(avg_conf)
+                elif tag_jenis == "QTY":
+                    list_qty.append(_parse_qty_from_text(decoded_text))
+                elif tag_jenis == "PRICE":
+                    list_harga.append(_parse_price_from_text(decoded_text))
 
-                # ── Decode nama produk ────────────────────────────────────────
-                product_name = (
-                    self._tokenizer.decode(temp_prod_ids).strip()
-                    if temp_prod_ids
-                    else _UNKNOWN_PRODUCT
-                )
-                if not product_name:
-                    product_name = _UNKNOWN_PRODUCT
-
-                # ── Parse kuantitas ───────────────────────────────────────────
-                qty_text = (
-                    self._tokenizer.decode(temp_qty_ids).strip()
-                    if temp_qty_ids
-                    else ""
-                )
-                quantity = _parse_qty_from_text(qty_text)
-
-                # ── Parse harga ───────────────────────────────────────────────
-                price_text = (
-                    self._tokenizer.decode(temp_price_ids).strip()
-                    if temp_price_ids
-                    else ""
-                )
-                price_satuan: Optional[int] = (
-                    _parse_price_from_text(price_text)
-                    if price_text
-                    else None
-                )
-
-                # ── Rata-rata confidence produk ───────────────────────────────
-                avg_conf_softmax = (
-                    float(np.mean(temp_prod_confs) * 100)
-                    if temp_prod_confs
-                    else 0.0
-                )
-
-                list_pesanan.append({
-                    "product":          product_name,
-                    "quantity":         quantity,
-                    "price_satuan":     price_satuan,
-                    "avg_conf_softmax": avg_conf_softmax,
-                })
-
-                logger.debug(
-                    "[Grouping] Item di-flush: product=%s qty=%d price=%s conf=%.1f",
-                    product_name, quantity, price_satuan, avg_conf_softmax,
-                )
-
-                # Reset semua variabel sementara
-                temp_prod_ids.clear()
-                temp_qty_ids.clear()
-                temp_price_ids.clear()
-                temp_prod_confs.clear()
-
-            # ── Loop token per token ──────────────────────────────────────────
             for i, tag in enumerate(tag_ids):
                 token_id = ids[i]
+                if tag == _TAG_O:
+                    if current_tag:
+                        _simpan_buffer(temp_ids, temp_confs, current_tag)
+                        temp_ids, temp_confs, current_tag = [], [], None
+                    continue
 
-                if tag == _TAG_B_PROD:
-                    # Produk baru dimulai — jika sudah ada produk sebelumnya, flush
-                    if temp_prod_ids:
-                        _flush_item()
-                    temp_prod_ids.append(token_id)
-                    temp_prod_confs.append(float(probs[i]))
+                if tag in (_TAG_B_PROD, _TAG_B_QTY, _TAG_B_PRICE):
+                    if current_tag:
+                        _simpan_buffer(temp_ids, temp_confs, current_tag)
+                    temp_ids = [token_id]
+                    temp_confs = [float(probs[i])]
 
-                elif tag == _TAG_I_PROD:
-                    temp_prod_ids.append(token_id)
-                    temp_prod_confs.append(float(probs[i]))
+                    if tag == _TAG_B_PROD: current_tag = "PROD"
+                    elif tag == _TAG_B_QTY: current_tag = "QTY"
+                    elif tag == _TAG_B_PRICE: current_tag = "PRICE"
 
-                elif tag == _TAG_B_QTY:
-                    # Qty baru — jika sudah ada qty sebelumnya, berarti item baru
-                    if temp_qty_ids:
-                        _flush_item()
-                    temp_qty_ids.append(token_id)
+                elif tag in (_TAG_I_PROD, _TAG_I_QTY, _TAG_I_PRICE):
+                    expected_current = None
+                    if tag == _TAG_I_PROD: expected_current = "PROD"
+                    elif tag == _TAG_I_QTY: expected_current = "QTY"
+                    elif tag == _TAG_I_PRICE: expected_current = "PRICE"
 
-                elif tag == _TAG_I_QTY:
-                    temp_qty_ids.append(token_id)
+                    if current_tag == expected_current:
+                        temp_ids.append(token_id)
+                        temp_confs.append(float(probs[i]))
+                    else:
+                        if current_tag:
+                            _simpan_buffer(temp_ids, temp_confs, current_tag)
+                        temp_ids = [token_id]
+                        temp_confs = [float(probs[i])]
+                        current_tag = expected_current
 
-                elif tag == _TAG_B_PRICE:
-                    # Harga baru dalam item yang sama — reset temp_price saja
-                    temp_price_ids.clear()
-                    temp_price_ids.append(token_id)
+            # Flush sisa buffer di akhir kalimat
+            if current_tag and temp_ids:
+                _simpan_buffer(temp_ids, temp_confs, current_tag)
 
-                elif tag == _TAG_I_PRICE:
-                    temp_price_ids.append(token_id)
+            # FASE 3: Relational Asosiasi (Mapping Berdasarkan Indeks)
+            list_pesanan: List[dict] = []
 
-                # _TAG_O → abaikan
-
-            # Flush item terakhir yang belum di-flush
-            _flush_item()
-
-            # ── Fallback jika tidak ada item terdeteksi ───────────────────────
-            if not list_pesanan:
-                logger.warning(
-                    "[Grouping] Tidak ada item terdeteksi dari NER. "
-                    "Fallback ke 'unknown'."
-                )
-                list_pesanan = [{
-                    "product":          _UNKNOWN_PRODUCT,
-                    "quantity":         1,
-                    "price_satuan":     None,
+            # Jika user tidak memasukkan produk sama sekali
+            if not list_produk:
+                return [{
+                    "product": _UNKNOWN_PRODUCT,
+                    "quantity": 1,
+                    "price_satuan": None,
                     "avg_conf_softmax": 0.0,
                 }]
+
+            for i in range(len(list_produk)):
+                # Mapping QTY & PRICE ke produk berdasarkan index.
+                # Total harga akhir dari penjual misal "55rb" otomatis tersaring
+                # karena elemen list_harga ke-3 tidak punya pasangan di list_produk.
+                qty = list_qty[i] if i < len(list_qty) else 1
+                price = list_harga[i] if i < len(list_harga) else None
+                conf = list_conf[i]
+
+                list_pesanan.append({
+                    "product": list_produk[i] if list_produk[i] else _UNKNOWN_PRODUCT,
+                    "quantity": qty,
+                    "price_satuan": price,
+                    "avg_conf_softmax": conf,
+                })
 
             logger.debug(
                 "[predict_single] %d item terdeteksi: %s",
@@ -392,8 +344,6 @@ class ModelLoader:
             )
             return list_pesanan
 
-        except ModelNotLoadedError:
-            raise
         except Exception as exc:
             logger.exception("Inference error: %s", exc)
             raise InferenceFailedError(str(exc)) from exc

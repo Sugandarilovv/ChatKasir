@@ -20,8 +20,11 @@ def download_assets():
     import json
     import shutil
 
+    # Pastikan folder penampungan model dan data dibuat secara rekursif
     os.makedirs("models", exist_ok=True)
-    os.makedirs("data/final", exist_ok=True)
+
+    from app.core.config import settings
+    os.makedirs(os.path.dirname(settings.SLANG_DICT_PATH), exist_ok=True)
 
     links = {
         settings.MODEL_PATH:      settings.GDRIVE_MODEL_URL,
