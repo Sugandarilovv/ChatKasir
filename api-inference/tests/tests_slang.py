@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.preprocessing import (
+from app.services.processing import (
     _build_phrase_index,
     get_slang_stats,
     load_slang_dict,

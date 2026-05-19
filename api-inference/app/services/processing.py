@@ -436,83 +436,56 @@ def _extract_total_from_chat(teks_bersih: str) -> Optional[int]:
     return angka
 
 
-def postprocess(model_output: dict, teks_bersih: str) -> dict:
+def postprocess(list_pesanan: List[dict], teks_bersih: str) -> List[dict]:
     """
-    Menghitung total dan menentukan confidence flag dari output model.
-
-    Parameters
-    ----------
-    model_output:
-        Dict dari ModelLoader.predict_single(), berisi:
-        {
-          "product":          str,
-          "quantity":         int,
-          "price_satuan":     int | None,
-          "avg_conf_softmax": float,   ← rata-rata confidence NER (0-100)
-        }
-
-    teks_bersih:
-        Teks yang sudah dipreprocess (dipakai untuk mengekstrak total di chat).
-
-    Returns
-    -------
-    Dict lengkap: { "product", "quantity", "price_satuan", "total", "confidence" }
-
-    Logika Confidence (Business Override):
-        Ada total di chat:
-            total_chat == total_prediksi → HIGH  (paksa, override softmax)
-            total_chat != total_prediksi → LOW   (paksa, override softmax)
-        Tidak ada total di chat (murni pakai Softmax AI):
-            avg_conf_softmax >= 90 → HIGH
-            avg_conf_softmax >= 70 → MEDIUM
-            avg_conf_softmax <  70 → LOW
-
-    Edge cases:
-        - price_satuan = None : total = None, confidence = MEDIUM
-        - product = "unknown" : confidence = MEDIUM
+    Menghitung subtotal per item dan menentukan confidence flag dari output model.
+    Versi V2: Mendukung pesanan Multi-Item dengan menghitung Grand Total.
     """
-    quantity: int           = model_output["quantity"]
-    price_satuan: Optional[int] = model_output.get("price_satuan")
-    product: str            = model_output.get("product", "")
-    avg_conf: float         = model_output.get("avg_conf_softmax", 0.0)
-
-    # Harga tidak diketahui → total tidak bisa dihitung
-    if price_satuan is None:
-        return {
-            "product":      product,
-            "quantity":     quantity,
-            "price_satuan": None,
-            "total":        None,
-            "confidence":   "MEDIUM",
-        }
-
-    total_prediksi: int = quantity * price_satuan
     total_chat = _extract_total_from_chat(teks_bersih)
 
-    # Produk tidak dikenal → selalu MEDIUM (butuh konfirmasi manual)
-    if product == "unknown":
-        confidence = "MEDIUM"
+    # 1. Hitung Grand Total dari semua prediksi model (hanya jika harganya valid)
+    grand_total_prediksi = sum(
+        (item["quantity"] * item["price_satuan"])
+        for item in list_pesanan
+        if item.get("price_satuan") is not None
+    )
 
-    # Business Override: ada total di chat → cocokkan dengan prediksi
-    elif total_chat is not None:
-        confidence = "HIGH" if total_chat == total_prediksi else "LOW"
+    hasil_akhir = []
 
-    # Tidak ada total di chat → murni pakai Softmax AI
-    else:
-        if avg_conf >= 90:
-            confidence = "HIGH"
-        elif avg_conf >= 70:
+    # 2. Proses masing-masing item dan berikan status confidence
+    for item in list_pesanan:
+        quantity = item["quantity"]
+        price_satuan = item.get("price_satuan")
+        product = item.get("product", "")
+        avg_conf = item.get("avg_conf_softmax", 0.0)
+
+        # Hitung Subtotal per item
+        subtotal_item = (quantity * price_satuan) if price_satuan is not None else None
+
+        # Penentuan Confidence
+        if price_satuan is None or product == "unknown":
             confidence = "MEDIUM"
+        elif total_chat is not None:
+            # Bandingkan GRAND TOTAL prediksi dengan TOTAL CHAT
+            confidence = "HIGH" if grand_total_prediksi == total_chat else "LOW"
         else:
-            confidence = "LOW"
+            # Tidak ada total di chat → murni pakai Softmax AI
+            if avg_conf >= 90:
+                confidence = "HIGH"
+            elif avg_conf >= 70:
+                confidence = "MEDIUM"
+            else:
+                confidence = "LOW"
 
-    return {
-        "product":      product,
-        "quantity":     quantity,
-        "price_satuan": price_satuan,
-        "total":        total_prediksi,
-        "confidence":   confidence,
-    }
+        hasil_akhir.append({
+            "product":      product,
+            "quantity":     quantity,
+            "price_satuan": price_satuan,
+            "total":        subtotal_item,
+            "confidence":   confidence,
+        })
+
+    return hasil_akhir
 
 
 # ─────────────────────────────────────────────────────────────────────────────

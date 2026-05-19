@@ -276,26 +276,27 @@ class TestPrepareModelInput:
 class TestPostprocess:
     def test_total_dihitung_benar(self):
         output = {"product": "nasi goreng", "quantity": 2, "price_satuan": 10000}
-        result = postprocess(output, "oke kak totalnya 20rb ya")
+        # Masukkan output ke dalam list, lalu ambil indeks [0] dari hasilnya
+        result = postprocess([output], "oke kak totalnya 20rb ya")[0]
         assert result["total"] == 20000
 
     def test_confidence_high_jika_total_cocok(self):
         output = {"product": "nasi goreng", "quantity": 2, "price_satuan": 10000}
-        result = postprocess(output, "oke kak totalnya 20rb ya")
+        result = postprocess([output], "oke kak totalnya 20rb ya")[0]
         assert result["confidence"] == "HIGH"
 
     def test_confidence_low_jika_total_tidak_cocok(self):
         output = {"product": "nasi goreng", "quantity": 2, "price_satuan": 10000}
-        result = postprocess(output, "oke kak totalnya 15rb ya")
+        result = postprocess([output], "oke kak totalnya 15rb ya")[0]
         assert result["confidence"] == "LOW"
 
     def test_confidence_medium_jika_tidak_ada_total(self):
         output = {"product": "es teh", "quantity": 3, "price_satuan": 5000}
-        result = postprocess(output, "oke kak es teh ya")
+        result = postprocess([output], "oke kak es teh ya")[0]
         assert result["confidence"] == "MEDIUM"
 
     def test_semua_field_ada_di_output(self):
         output = {"product": "nasi goreng", "quantity": 2, "price_satuan": 10000}
-        result = postprocess(output, "totalnya 20rb")
+        result = postprocess([output], "totalnya 20rb")[0]
         for field in ("product", "quantity", "price_satuan", "total", "confidence"):
             assert field in result
