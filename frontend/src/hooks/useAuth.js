@@ -7,6 +7,20 @@ export function useAuth() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
+  // Helper untuk membaca format error dari backend Reihan
+  function getErrorMessage(err) {
+    const data = err.response?.data
+    if (!data) return 'Terjadi kesalahan jaringan.'
+    
+    // Error dari express-validator (contoh: password kurang dari 6 karakter)
+    if (data.errors && data.errors.length > 0) return data.errors[0].msg
+    
+    // Error bawaan dari Supabase
+    if (data.error) return data.error
+    
+    return data.message || 'Terjadi kesalahan.'
+  }
+
   async function handleLogin(email, password) {
     setLoading(true)
     try {
@@ -14,7 +28,7 @@ export function useAuth() {
       showToast('Berhasil masuk!', 'success')
       navigate('/dashboard')
     } catch (err) {
-      showToast(err.response?.data?.message || 'Email atau password salah.', 'error')
+      showToast(getErrorMessage(err), 'error')
     } finally { setLoading(false) }
   }
 
@@ -22,10 +36,10 @@ export function useAuth() {
     setLoading(true)
     try {
       await register(nama, email, password)
-      showToast('Akun berhasil dibuat.', 'success')
-      navigate('/login')
+      showToast('Registrasi berhasil! Silakan cek email untuk kode OTP.', 'success')
+      navigate('/login') // Bisa diubah ke /konfirmasi-otp jika halaman OTP sudah siap
     } catch (err) {
-      showToast(err.response?.data?.message || 'Gagal membuat akun.', 'error')
+      showToast(getErrorMessage(err), 'error')
     } finally { setLoading(false) }
   }
 
