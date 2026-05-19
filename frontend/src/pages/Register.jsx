@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { showToast } from '../components/ui/Toast' // IMPORT TOAST DITAMBAHKAN
 
 // IMPORT GAMBAR LOGO
 import logoImg from '../assets/logo.png' 
@@ -19,7 +18,6 @@ export default function Register() {
   const [showPass, setShowPass]   = useState(false)
   const [showPass2, setShowPass2] = useState(false)
 
-  // LOGIKA TOAST DITAMBAHKAN DI SINI
   function onSubmit(data) { 
     handleRegister(data.nama, data.email, data.password) 
   }
@@ -116,7 +114,7 @@ export default function Register() {
             </div>
 
             <button type="submit" disabled={loading}
-              className="w-full py-3 mt-4 rounded-xl font-bold text-white text-sm transition-all shadow-sm bg-green-600 hover:bg-green-700 flex items-center justify-center">
+              className="w-full py-3 mt-4 rounded-xl font-bold text-white text-sm transition-all shadow-sm bg-green-600 hover:bg-green-700 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? 'Memproses...' : 'Daftar Sekarang'}
             </button>
           </form>
