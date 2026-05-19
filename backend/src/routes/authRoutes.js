@@ -6,7 +6,6 @@ const {
   login,
   verifyOtp,
   forgotPassword,
-  resetPassword,
 } = require("../controllers/authController");
 
 // Validasi untuk Register
