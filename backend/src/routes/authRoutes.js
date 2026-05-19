@@ -6,6 +6,7 @@ const {
   login,
   verifyOtp,
   forgotPassword,
+  updatePassword,
 } = require("../controllers/authController");
 
 // Validasi untuk Register
@@ -21,5 +22,7 @@ router.post("/register", registerValidation, register);
 router.post("/login", login);
 router.post("/verify-otp", verifyOtp);
 router.post("/forgot-password", forgotPassword);
+
+router.put("/update-password", updatePassword);
 
 module.exports = router;
