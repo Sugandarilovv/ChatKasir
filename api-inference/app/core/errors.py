@@ -46,7 +46,7 @@ class InferenceFailedError(AI2BaseException):
 
 
 class UnauthorizedError(AI2BaseException):
-    def __init__(self, message: str = "Unauthorized – invalid or missing API key"):
+    def __init__(self, message: str = "Unauthorized - invalid or missing API key"):
         super().__init__(message, ErrorCode.UNAUTHORIZED, 401)
 
 

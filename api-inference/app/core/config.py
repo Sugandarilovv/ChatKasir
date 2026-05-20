@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # ── App meta ──────────────────────────────────────────────────────────────
     APP_NAME:    str  = "AI2 API - ChatKasir"
-    APP_VERSION: str  = "1.1.0"
+    APP_VERSION: str  = "2.0"
     DEBUG:       bool = False
 
     # ── Security ──────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # BUKAN url. File didownload dulu oleh download_assets() di main.py.
     MODEL_PATH:       str = "models/model.keras"
     TOKENIZER_PATH:   str = "models/tokenizer.json"
-    MAX_SEQUENCE_LEN: int = 64
+    MAX_SEQUENCE_LEN: int = 128
 
     # ── Data ──────────────────────────────────────────────────────────────────
     SLANG_DICT_PATH: str = "data/final/slang_utama.csv"
