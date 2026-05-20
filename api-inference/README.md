@@ -99,7 +99,7 @@ Dokumentasi interaktif: `http://localhost:8000/docs`
 | `API_KEY` | `changeme` | **Wajib diganti** sebelum deploy |
 | `MODEL_PATH` | `models/model.keras` | Path ke model Keras AI-1 |
 | `TOKENIZER_PATH` | `models/tokenizer.json` | Path ke tokenizer JSON |
-| `MAX_SEQUENCE_LEN` | `64` | Harus sama dengan saat training |
+| `MAX_SEQUENCE_LEN` | `128` | Harus sama dengan saat training. Dinaikkan ke 128 untuk mengakomodasi teks chat majemuk yang panjang. |
 | `SLANG_DICT_PATH` | `data/final/slang_utama.csv` | Kamus slang dari DS-1 (Faradi) |
 | `GDRIVE_MODEL_URL` | *(lihat config.py)* | URL Google Drive untuk auto-download model |
 | `GDRIVE_TOKENIZER_URL` | *(lihat config.py)* | URL Google Drive untuk auto-download tokenizer |

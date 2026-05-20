@@ -1,6 +1,6 @@
 # API Contract – AI-2 API ↔ FS-2 (Reihan)
 
-> **Version**: 1.1.0
+> **Version**: 2.0
 > **Base URL**: `https://<host>/`
 > **Authentication**: `X-API-Key` header (wajib di semua endpoint kecuali `/health`)
 
@@ -29,7 +29,7 @@ Cek status API dan model. Tidak butuh autentikasi.
 {
   "status": "ok",
   "model_loaded": true,
-  "version": "1.1.0"
+  "version": "2.0"
 }
 ```
 
@@ -48,7 +48,7 @@ Terima raw chat WhatsApp, kembalikan hasil prediksi transaksi.
 **Request body** (`application/json`)
 ```json
 {
-  "raw_text": "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\n[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya"
+  "raw_text": "[07.42, 22/4/2026] Pembeli: bang beli 3 bakso mercon sama es tehnya 2\n[07.44, 22/4/2026] Penjual: siap mas bakso mercon 15rb, es teh 5rb total harganya jadi 55rb ya"
 }
 ```
 
@@ -61,14 +61,21 @@ Terima raw chat WhatsApp, kembalikan hasil prediksi transaksi.
 {
   "results": [
     {
-      "product":      "nasi goreng",
-      "quantity":     2,
-      "price_satuan": 10000,
-      "total":        20000,
-      "confidence":   "HIGH"
+      "product": "bakso mercon",
+      "quantity": 3,
+      "price_satuan": 15000,
+      "total": 45000,
+      "confidence": "HIGH"
+    },
+    {
+      "product": "es teh",
+      "quantity": 2,
+      "price_satuan": 5000,
+      "total": 10000,
+      "confidence": "HIGH"
     }
   ],
-  "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
+  "clean_text": "bang beli 3 bakso mercon sama es tehnya 2 [SEP] siap mas bakso mercon 15rb es teh 5rb total harganya jadi 55rb ya"
 }
 ```
 
@@ -118,9 +125,9 @@ Terima raw chat WhatsApp, kembalikan hasil prediksi transaksi.
 
 | Nilai | Kondisi | Aksi yang Direkomendasikan (Alfan) |
 |---|---|---|
-| `HIGH` | Total di chat cocok dengan prediksi model | Langsung simpan ke database |
-| `MEDIUM` | Tidak ada total, atau harga/produk tidak dikenali | Tampilkan dengan opsi edit |
-| `LOW` | Ada total di chat tapi tidak cocok prediksi | Tampilkan peringatan, minta konfirmasi |
+| `HIGH` | Grand Total dari seluruh prediksi model (`sum(quantity × price_satuan)`) cocok dengan nilai total yang disebutkan penjual di chat | Langsung simpan ke database |
+| `MEDIUM` | Tidak ada penyebutan nilai total di chat untuk diverifikasi (murni mengandalkan rata-rata ambang batas probabilitas Softmax AI), ATAU `price_satuan` bernilai `null`, ATAU nama produk terdeteksi sebagai `"unknown"` | Tampilkan dengan opsi edit |
+| `LOW` | Ada nilai total yang disebutkan di dalam chat, tetapi tidak cocok dengan hasil perhitungan Grand Total prediksi model | Tampilkan peringatan, minta konfirmasi |
 
 ---
 
@@ -147,6 +154,12 @@ Semua error mengikuti schema ini:
 ---
 
 ## Changelog
+
+### v2.0
+- **Breaking Change (Arsitektur Model)**: Migrasi dari model multi-cabang ke Unified Transformer-NER dengan skema 7 tag entitas secara langsung.
+- **Fitur Baru (Multi-Item)**: Mengimplementasikan algoritma Independent Extraction 3-Fase berbasis indeks untuk mendukung ekstraksi banyak produk sekaligus dalam satu chat.
+- **Pembaruan Bisnis Logika**: Mengubah penghitungan validasi ganda dari skala item tunggal menjadi akumulasi Grand Total pesanan sebelum menentukan status *confidence*.
+- **Optimalisasi Token**: Menaikkan `MAX_SEQUENCE_LEN` menjadi 128 token untuk menjamin chat panjang multi-pesanan tidak terpotong saat inferensi.
 
 ### v1.1.0
 - `price_satuan` dan `total` sekarang **nullable** (`integer | null`) untuk kasus harga tidak disebutkan
