@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     # ── GDrive URLs — sumber download asset ───────────────────────────────────
     # Ubah nilai ini jika AI-1 (Rifan) upload ulang model ke GDrive yang baru.
     # Format: https://drive.google.com/uc?id=<FILE_ID>
-    GDRIVE_MODEL_URL:     str = "https://drive.google.com/uc?id=1NgbF_aslZebTiCyVW3No3U2ysH1NmDye"
-    GDRIVE_TOKENIZER_URL: str = "https://drive.google.com/uc?id=1i1TIsmeAI3EsVawzqmdZRQmCr3gtBhOG"
+    GDRIVE_MODEL_URL:     str = "https://drive.google.com/uc?id=1HM0r0g3mwyTcxX-boNJlbpnvDacvUHM8"
+    GDRIVE_TOKENIZER_URL: str = "https://drive.google.com/uc?id=1ahajRHgsOu8WZhT8gNjI3FswS440-ErF"
     GDRIVE_SLANG_URL:     str = "https://drive.google.com/uc?id=1G14C1qcqOp06Xs1HFiorE3Us_LLtaBs7"
 
     # ── CORS ──────────────────────────────────────────────────────────────────

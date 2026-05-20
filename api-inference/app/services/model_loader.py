@@ -55,6 +55,7 @@ def _build_transformer_encoder_class():
         Dense, Dropout, LayerNormalization, MultiHeadAttention,
     )
 
+    @tf.keras.utils.register_keras_serializable()
     class TransformerEncoder(tf.keras.layers.Layer):
         """
         Custom Transformer Encoder Layer — didaftarkan ke custom_objects saat
@@ -66,6 +67,7 @@ def _build_transformer_encoder_class():
 
         def __init__(self, embed_dim=128, num_heads=4, ff_dim=256, rate=0.1, **kwargs):
             super(TransformerEncoder, self).__init__(**kwargs)
+            self.supports_masking = True
             self.att        = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
             self.ffn        = tf.keras.Sequential([
                 Dense(ff_dim, activation="relu"),
