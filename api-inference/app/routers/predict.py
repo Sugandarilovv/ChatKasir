@@ -114,8 +114,8 @@ async def predict(
     )
 
     # ── Step 4: Postprocessing ────────────────────────────────────────────────
-    enriched = postprocess(raw_output, teks_bersih)
+    enriched_list = postprocess(raw_output, teks_bersih)
 
     # ── Step 5: Build response ────────────────────────────────────────────────
-    item = OrderItem(**enriched)
-    return PredictResponse(results=[item], clean_text=teks_bersih)
+    items = [OrderItem(**pesanan) for pesanan in enriched_list]
+    return PredictResponse(results=items, clean_text=teks_bersih)

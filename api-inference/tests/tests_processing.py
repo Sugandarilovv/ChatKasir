@@ -300,3 +300,4 @@ class TestPostprocess:
         result = postprocess([output], "totalnya 20rb")[0]
         for field in ("product", "quantity", "price_satuan", "total", "confidence"):
             assert field in result
+
