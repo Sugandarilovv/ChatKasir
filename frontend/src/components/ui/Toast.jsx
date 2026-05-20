@@ -25,8 +25,10 @@ export function ToastProvider({ children }) {
     setToasts((prev) => [...prev.slice(-2), { id, msg, type, out: false }])
     timers.current[id] = setTimeout(() => {
       setToasts((prev) => prev.map((t) => t.id === id ? { ...t, out: true } : t))
-      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 280)
-    }, 1800)
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id))
+      }, 300)
+    }, 3500) // Tepat 5 detik!
   }, [])
 
   _showGlobal = show // Simpan fungsi ke variabel luar
@@ -70,7 +72,7 @@ export function ToastProvider({ children }) {
                 pointerEvents: 'auto',
                 width: 'fit-content' // Supaya box tetap pas dengan tulisan
               }}>
-              <span style={{ fontSize: 11 }}>{ICONS[t.type]}</span>
+              <span style={{ fontSize: 13 }}>{ICONS[t.type]}</span>
               {t.msg}
             </div>
           )

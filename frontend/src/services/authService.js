@@ -1,13 +1,9 @@
 import api from './axiosInstance'
 
-// Dimatikan karena backend Reihan sudah jalan di Vercel
 const USE_MOCK = false
 
 export async function register(nama, email, password) {
-  if (USE_MOCK) {
-    return { message: 'Akun berhasil dibuat (mock)' }
-  }
-  // Mapping 'nama' dari frontend menjadi 'full_name' untuk backend
+  if (USE_MOCK) return { message: 'Akun berhasil dibuat (mock)' }
   const res = await api.post('/auth/register', { full_name: nama, email, password })
   return res.data
 }
@@ -24,7 +20,6 @@ export async function login(email, password) {
   const { token, user_id } = res.data
   
   localStorage.setItem('token', token)
-  // Simpan user_id dari respons backend
   localStorage.setItem('user', JSON.stringify({ id: user_id, email }))
   return res.data
 }
@@ -39,13 +34,17 @@ export function getCurrentUser() {
   return user ? JSON.parse(user) : null
 }
 
-// FUNGSI BARU UNTUK LUPA PASSWORD
 export async function forgotPassword(email) {
   const res = await api.post('/auth/forgot-password', { email })
   return res.data
 }
 
-export async function updatePassword(password) {
-  const res = await api.put('/auth/update-password', { password })
+// PERBAIKAN: Tambahkan parameter refreshToken
+export async function updatePassword(accessToken, refreshToken, password) {
+  const res = await api.put('/auth/update-password', { 
+    access_token: accessToken, 
+    refresh_token: refreshToken, // Kirim ke backend
+    new_password: password 
+  })
   return res.data
 }

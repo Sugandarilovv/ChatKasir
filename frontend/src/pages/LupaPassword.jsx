@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import toast from 'react-hot-toast'
 import { forgotPassword, updatePassword } from '../services/authService'
+import { showToast } from '../components/ui/Toast' // Pakai Toast bawaan ChatKasir
 
 export default function LupaPassword() {
   const navigate = useNavigate()
@@ -14,24 +14,22 @@ export default function LupaPassword() {
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [showConfirmPass, setShowConfirmPass] = useState(false)
+  
+  const [recoveryToken, setRecoveryToken] = useState('')
+  const [refreshToken, setRefreshToken] = useState('') // State baru
 
-  // LOGIKA PENTING: Menangkap token dari URL saat user klik link di email
   useEffect(() => {
-    // Supabase mengirim token di bagian hash URL (#access_token=...)
     const hash = window.location.hash
     if (hash) {
-      // Ubah hash menjadi format URLSearchParams agar mudah dibaca
       const params = new URLSearchParams(hash.replace('#', '?'))
       const accessToken = params.get('access_token')
+      const refToken = params.get('refresh_token') // Ambil dari URL Supabase
       const type = params.get('type')
 
-      // Jika URL membawa token pemulihan (recovery)
-      if (accessToken && type === 'recovery') {
-        // Simpan token sementara agar axiosInstance bisa memakainya
-        localStorage.setItem('token', accessToken)
-        // Langsung tampilkan form isi password baru (Step 3)
+      if (accessToken && refToken && type === 'recovery') {
+        setRecoveryToken(accessToken)
+        setRefreshToken(refToken) // Simpan refresh token
         setStep(3)
-        // Bersihkan URL dari hash agar terlihat rapi
         window.history.replaceState(null, '', location.pathname)
       }
     }
@@ -42,41 +40,36 @@ export default function LupaPassword() {
     navigate('/login') 
   }
 
-  // LANGKAH 1: Eksekusi API Kirim Email Reset
   async function handleKirimEmailReset(e) {
     e.preventDefault()
-    if (!email) return toast.error('Masukkan email terlebih dahulu')
+    if (!email) return showToast('Masukkan email terlebih dahulu', 'error')
     
     setLoading(true)
     try {
       await forgotPassword(email)
-      setStep(2) // Pindah ke halaman "Cek Email" jika sukses
+      setStep(2) 
     } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Gagal mengirim link pemulihan.')
+      showToast(err.response?.data?.error || err.message || 'Gagal mengirim link pemulihan.', 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  // LANGKAH 3: Eksekusi API Simpan Password Baru
   async function handleSimpanPassword(e) {
     e.preventDefault()
     
-    if (newPass.length < 8) return toast.error('Sandi minimal 8 karakter')
-    if (newPass !== confirmPass) return toast.error('Konfirmasi kata sandi tidak cocok')
+    if (newPass.length < 8) return showToast('Sandi minimal 8 karakter', 'error')
+    if (newPass !== confirmPass) return showToast('Konfirmasi kata sandi tidak cocok', 'error')
+    if (!recoveryToken) return showToast('Token tidak valid. Silakan ulangi proses dari awal.', 'error')
 
     setLoading(true)
     try {
-      await updatePassword(newPass)
-      toast.success('Password berhasil diubah! Silakan masuk.')
-      
-      // Bersihkan token pemulihan karena password sudah berhasil diganti
-      localStorage.removeItem('token') 
-      
-      // Arahkan kembali ke halaman login
+      // Kirim 2 token sekaligus
+      await updatePassword(recoveryToken, refreshToken, newPass)
+      showToast('Password berhasil diubah! Silakan masuk.', 'success')
       navigate('/login')
     } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Gagal mengubah password.')
+      showToast(err.response?.data?.error || err.message || 'Gagal mengubah password.', 'error')
     } finally {
       setLoading(false)
     }
