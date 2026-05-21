@@ -5,7 +5,9 @@ const callAIExtract = async (text) => {
     // coba health check — TANPA API key
     const health = await fetch(`${process.env.AI_API_URL}/health`);
     const healthData = await health.json();
-    console.log("Health check:", healthData);
+    console.log("Health:", healthData);
+    console.log("AI_API_URL:", process.env.AI_API_URL);
+    console.log("AI_API_KEY:", process.env.AI_API_KEY?.substring(0, 5) + "...");
 
     if (!healthData.model_loaded) {
       console.warn("Model belum ready");
