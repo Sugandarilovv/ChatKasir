@@ -81,8 +81,7 @@ const forgotPassword = async (req, res) => {
   }
 
   const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
-    redirectTo:
-      "http://localhost:5173/lupa-password" /*< nanti ganti ke url alfan */,
+    redirectTo: `${process.env.FRONTEND_URL}/lupa-password`,
   });
 
   if (error) {
