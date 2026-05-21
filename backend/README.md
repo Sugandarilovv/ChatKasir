@@ -1,265 +1,113 @@
 # FS-2 Backend — Muhammad Reihan Ersa Putra
 
-Bagian ini berisi seluruh pekerjaan **FS-2 (Full Stack - Back End)**: REST API berbasis Express.js yang menjadi jembatan antara frontend, AI model, dan database Supabase PostgreSQL.
+Repositori ini berisi seluruh kode sumber untuk **Back End (FS-2)** aplikasi ChatKasir. Proyek ini dibangun menggunakan framework Express.js dan terintegrasi dengan database PostgreSQL melalui Supabase, serta mendukung pemrosesan teks berbasis AI untuk pencatatan transaksi otomatis secara real-time.
+
+Aplikasi ini telah berhasil di-deploy dan berjalan secara serverless di **Vercel**.
 
 ---
 
 ## Tech Stack
 
-| Tool        | Versi      | Kegunaan                             |
-| ----------- | ---------- | ------------------------------------ |
-| Node.js     | `>=18`     | Runtime JavaScript                   |
-| Express.js  | `^5.2.1`   | Framework REST API                   |
-| Supabase JS | `^2.104.0` | Client untuk database & auth         |
-| dotenv      | `^17.4.2`  | Manajemen environment variables      |
-| cors        | `^2.8.6`   | Mengizinkan request dari frontend    |
-| nodemon     | `^3.1.14`  | Auto-restart server saat development |
-| jest        | `^29+`     | Unit testing                         |
-| supertest   | `^7+`      | HTTP integration testing             |
+| Teknologi             | Versi      | Kegunaan                                                      |
+| :-------------------- | :--------- | :------------------------------------------------------------ |
+| **Node.js**           | `>=18`     | Runtime environment JavaScript                                |
+| **Express.js**        | `^5.2.1`   | Framework utama untuk pembuatan RESTful API                   |
+| **Supabase JS**       | `^2.104.0` | Client untuk manajemen Database (PostgreSQL) & Authentication |
+| **dotenv**            | `^17.4.2`  | Manajemen environment variables secara aman                   |
+| **cors**              | `^2.8.6`   | Middleware pengatur izin akses cross-origin dari frontend     |
+| **express-validator** | `^7.0.0`   | Validasi data input pada request body                         |
 
 ---
 
 ## Struktur Folder
 
-```
+```text
 backend/
 ├── src/
 │   ├── config/
-│   │   └── supabase.js              ← Dua Supabase client: DB & Auth
+│   │   └── supabase.js              ← Inisialisasi DB & Auth Supabase Client
 │   ├── controllers/
-│   │   ├── authController.js        ← Logika register, login, verifyOtp
-│   │   ├── transactionController.js ← Logika transaksi & integrasi AI
-│   │   ├── reportController.js      ← Logika laporan bulanan
-│   │   └── userController.js        ← Logika update profil
+│   │   ├── authController.js        ← Logika Auth (Register, Login, OTP, Password)
+│   │   ├── transactionController.js ← Logika Transaksi & Integrasi AI (Hugging Face)
+│   │   ├── reportController.js      ← Logika Kalkulasi Laporan Keuangan Bulanan
+│   │   └── userController.js        ← Logika Manajemen Profil User
 │   ├── middleware/
-│   │   └── authMiddleware.js        ← Verifikasi JWT token Supabase
+│   │   └── authMiddleware.js        ← Proteksi Route (JWT Verifier via Supabase)
 │   └── routes/
-│       ├── authRoutes.js            ← /auth/*
-│       ├── transactionRoutes.js     ← /transactions/*
-│       ├── reportRoutes.js          ← /report/*
-│       └── userRoutes.js            ← /users/*
-├── tests/
-│   └── auth.test.js                 ← Unit test endpoint auth
-├── .env                             ← Environment variables (tidak di-push ke GitHub)
-├── .env.example                     ← Template .env untuk anggota lain
-├── index.js                         ← Entry point server
-├── package.json
-└── README-fs2.md                    ← Dokumentasi ini
+│       ├── authRoutes.js            ← Routing endpoint kelompok Auth
+│       ├── transactionRoutes.js     ← Routing endpoint kelompok Transaksi
+│       ├── reportRoutes.js          ← Routing endpoint kelompok Laporan
+│       └── userRoutes.js            ← Routing endpoint kelompok User
+├── .env.example                     ← Contoh format environment variable
+├── index.js                         ← Entry point utama aplikasi & Konfigurasi CORS
+├── vercel.json                      ← Konfigurasi Deployment Serverless Vercel
+└── package.json                     ← Daftar dependencies dan script running
 ```
+
+## Memulai di Lokal (Local Development)
+
+Ikuti langkah-langkah di bawah ini untuk menjalankan server backend ini di komputer lokal kamu:
+
+1. **Clone Repositori:**
+
+   ```bash
+   git clone <url-repository-github-kamu>
+   cd backend
+   ```
+
+2. **Install Dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Setup Environment Variables:**
+   Buat sebuah file baru bernama `.env` tepat di root folder backend, lalu isi parameternya dengan mengikuti struktur template dari `.env.example`:
+
+   ```env
+   PORT=3000
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_SECRET_KEY=your_supabase_service_role_key
+   SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+   AI_API_URL=https://achmadrifan-chatkasir.hf.space
+   AI_API_KEY=your_huggingface_ai_api_key
+   FRONTEND_URL=your_production_frontend_url
+   ```
+
+4. **Jalankan Server Lokal:**
+   ```bash
+   npm start
+   ```
+   Server backend akan otomatis berjalan aktif pada tautan `http://localhost:3000`.
 
 ---
 
-## Cara Setup Environment
+## Fitur & Dokumentasi Endpoint (RESTful API)
 
-### 1. Pastikan Node.js sudah terinstall
-```bash
-node -v   # harus >= v18
-npm -v
-```
+Semua endpoint di bawah ini proteksinya telah diatur menggunakan **Auth Middleware**. Kecuali endpoint registrasi dan login, request wajib menyertakan header berikut:
+`Authorization: Bearer <your_supabase_jwt_token>`
 
-### 2. Clone repo dan masuk ke folder backend
-```bash
-git clone https://github.com/reihanersaa/ChatKasir.git
-cd ChatKasir/backend
-```
+### 1. Autentikasi (`/auth`)
 
-### 3. Install dependencies
-```bash
-npm install
-```
+- `POST /auth/register` : Mendaftarkan akun kasir baru (wajib mengisi `email`, `password`, dan `full_name`). Sistem otomatis mengirimkan **Email Verification Link** ke email pendaftar.
+- `POST /auth/login` : Masuk ke aplikasi menggunakan email terverifikasi. Mengembalikan JWT Token valid serta data profil user.
+- `POST /auth/forgot-password` : Mengirimkan **Magic Link Reset Password** ke email milik user yang terdaftar untuk dialihkan ke halaman pembaruan sandi di frontend.
+- `PUT /auth/update-password` : Memperbarui password lama milik user menggunakan token verifikasi sesi baru.
 
-### 4. Buat file `.env`
-```bash
-cp .env.example .env
-```
+### 2. Manajemen Pengguna (`/users`)
 
-Minta nilai aslinya ke Reihan, lalu isi:
-```
-PORT=3000
-SUPABASE_URL=https://xxxxxxxx.supabase.co
-SUPABASE_SECRET_KEY=sb_secret_...
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-AI_API_URL=http://localhost:7860
-AI_API_KEY=
-```
+- `PUT /users/profile` : Memperbarui data nama lengkap (`full_name`) dan URL foto profil (`avatar_url`) milik user aktif saat ini di dalam database Supabase.
 
-### 5. Jalankan server
-```bash
-npm run dev
-```
+### 3. Transaksi & Integrasi AI (`/transactions`)
 
-Kalau berhasil akan muncul:
-```
-Server running on port 3000
-```
+- `POST /transactions` : Menerima teks kasir mentah (_raw text_), meneruskannya ke model AI NLP (Hugging Face) milik tim AI untuk diekstrak menjadi item produk, kuantitas, harga, total, lalu menyimpannya otomatis ke database.
+- `GET /transactions` : Mengambil data seluruh riwayat transaksi kasir. Endpoint ini mendukung fitur query parameter untuk **Paginasi** (`page`, `limit`) dan **Filter Rentang Tanggal** (`startDate`, `endDate`).
+  - _Contoh Request:_ `GET /transactions?page=1&limit=10&startDate=2026-05-01&endDate=2026-05-31`
 
-### 6. Jalankan unit test
-```bash
-npm test
-```
+### 4. Laporan Keuangan (`/report`)
 
----
-
-## Daftar Endpoint
-
-> Base URL: `http://localhost:3000`
-> Semua endpoint selain Auth membutuhkan header: `Authorization: Bearer <token>`
-
-### Auth
-
-| Method | Endpoint            | Deskripsi                        | Auth |
-| ------ | ------------------- | -------------------------------- | ---- |
-| POST   | `/auth/register`    | Daftar akun baru (kirim OTP)     | ✗    |
-| POST   | `/auth/verify-otp`  | Verifikasi kode OTP dari email   | ✗    |
-| POST   | `/auth/login`       | Login & dapatkan token           | ✗    |
-
-### Users
-
-| Method | Endpoint         | Deskripsi                        | Auth |
-| ------ | ---------------- | -------------------------------- | ---- |
-| PUT    | `/users/profile` | Update nama & foto profil        | ✓    |
-
-### Transaksi
-
-| Method | Endpoint        | Deskripsi                                     | Auth |
-| ------ | --------------- | --------------------------------------------- | ---- |
-| POST   | `/transactions` | Kirim teks chat, ekstrak via AI, simpan ke DB | ✓    |
-| GET    | `/transactions` | Ambil daftar transaksi (filter + paginasi)    | ✓    |
-
-Query params GET `/transactions` (semua opsional):
-- `?startDate=2026-04-01` — filter dari tanggal
-- `?endDate=2026-04-30` — filter sampai tanggal
-- `?page=1` — halaman (default: 1)
-- `?limit=10` — jumlah data per halaman (default: 10)
-
-### Laporan
-
-| Method | Endpoint          | Deskripsi                  | Auth |
-| ------ | ----------------- | -------------------------- | ---- |
-| GET    | `/report/monthly` | Laporan pendapatan bulanan | ✓    |
-
-Query params: `?month=5&year=2026`
-
----
-
-## Contoh Penggunaan Endpoint
-
-### Register
-```
-POST http://localhost:3000/auth/register
-Content-Type: application/json
-
-{
-  "email": "penjual@gmail.com",
-  "password": "123456",
-  "full_name": "Nama Penjual"
-}
-```
-Response `201`:
-```json
-{ "message": "Registrasi berhasil! Silakan cek email untuk kode OTP." }
-```
-
-### Verify OTP
-```
-POST http://localhost:3000/auth/verify-otp
-Content-Type: application/json
-
-{
-  "email": "penjual@gmail.com",
-  "token": "123456"
-}
-```
-Response `200`:
-```json
-{ "message": "Email berhasil diverifikasi!", "session": { ... } }
-```
-
-### Login
-```
-POST http://localhost:3000/auth/login
-Content-Type: application/json
-
-{
-  "email": "penjual@gmail.com",
-  "password": "123456"
-}
-```
-Response `200`:
-```json
-{
-  "message": "Login berhasil",
-  "token": "eyJhbGci...",
-  "user_id": "uuid-..."
-}
-```
-> **Penting:** Simpan `token` ini dan kirimkan sebagai header `Authorization: Bearer <token>` di setiap request berikutnya.
-
-### Kirim Teks Chat
-```
-POST http://localhost:3000/transactions
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "raw_text": "Budi beli 2 nasi goreng 15rb sama 3 es teh 5rb"
-}
-```
-Response `201`:
-```json
-{
-  "message": "Transaksi berhasil diekstrak dan disimpan",
-  "data": [
-    {
-      "product_name": "nasi goreng",
-      "quantity": 2,
-      "price_satuan": 15000,
-      "total": 30000,
-      "confidence": "HIGH",
-      "is_manual": false,
-      "transaction_date": "2026-05-14"
-    }
-  ]
-}
-```
-
-### Ambil Daftar Transaksi
-```
-GET http://localhost:3000/transactions?startDate=2026-05-01&page=1&limit=10
-Authorization: Bearer <token>
-```
-Response `200`:
-```json
-{
-  "message": "Data transaksi berhasil diambil",
-  "pagination": {
-    "total_items": 25,
-    "current_page": 1,
-    "total_pages": 3,
-    "limit": 10
-  },
-  "data": [...]
-}
-```
-
-### Laporan Bulanan
-```
-GET http://localhost:3000/report/monthly?month=5&year=2026
-Authorization: Bearer <token>
-```
-Response `200`:
-```json
-{
-  "message": "Laporan bulanan berhasil diambil",
-  "period": "5-2026",
-  "summary": {
-    "total_revenue": 1500000,
-    "total_items_sold": 45,
-    "total_transactions": 20
-  },
-  "data": [...]
-}
-```
+- `GET /report/monthly` : Menghasilkan kalkulasi total pendapatan bulanan, kuantitas item terjual, serta daftar rincian data transaksi pada periode tertentu berdasarkan filter query params `month` (bulan) dan `year` (tahun). Digunakan untuk menyuplai data grafik di frontend.
+  - _Contoh Request:_ `GET /report/monthly?month=5&year=2026`
 
 ---
 
@@ -278,37 +126,8 @@ Skema lengkap tersedia di `docs/supabase-schema-updated.png`.
 
 ---
 
-## Status Integrasi
+## Informasi Deployment & Kebijakan CORS
 
-| Komponen | Status |
-|---|---|
-| Auth (register, OTP, login) | ✅ Selesai |
-| Update profil | ✅ Selesai |
-| POST /transactions | ✅ Selesai (menunggu AI-2 API siap) |
-| GET /transactions | ✅ Selesai |
-| GET /report/monthly | ✅ Selesai |
-| Integrasi AI-2 (Denny) | ⏳ Menunggu API Denny siap |
-| Integrasi FS-1 (Alfan) | 🔄 Dalam proses |
-| Deploy | 📅 13 Mei 2026 |
-
----
-
-## Catatan untuk Anggota Tim
-
-**FS-1 (Alfan):**
-- Base URL saat development: `http://localhost:3000` — backend harus aktif (`npm run dev`) selama sesi integrasi
-- Kalau remote, minta Reihan jalankan ngrok untuk dapat URL publik sementara
-- Kirim header `Authorization: Bearer <token>` di setiap request yang butuh auth
-- Postman Collection sudah tersedia di `docs/` — import untuk langsung test semua endpoint
-- Frontend jalan di port berapa? Kabari Reihan untuk setting CORS yang sesuai
-
-**AI-2 (Denny):**
-- Backend memanggil `POST /predict` setiap ada `POST /transactions`
-- Field yang digunakan dari response: `results[].product`, `results[].quantity`, `results[].price_satuan`, `results[].total`, `results[].confidence`
-- Backend jalankan di port 7860 sesuai README kamu — pastikan `AI_API_URL=http://localhost:7860` di `.env` Reihan
-- File model (`.keras` + `tokenizer.json`) koordinasi dengan Rifan untuk setup di folder `models/`
-
-**DS-1 & DS-2 (Faradi & Salman):**
-- Data transaksi tersimpan di tabel `transactions` Supabase
-- Data teks mentah & status pemrosesan di tabel `chat_extractions`
-- Akses langsung ke Supabase bisa diminta ke Reihan
+- **Hosting Server:** Vercel (Serverless Functions)
+- **Database Target:** Supabase PostgreSQL Database
+- **CORS Policy:** Akses lintas asal (CORS) telah dikonfigurasi secara dinamis untuk meloloskan request dari `http://localhost:3000`, `http://localhost:5173`, domain utama yang didaftarkan pada variabel `FRONTEND_URL`, serta seluruh tautan otomatis _preview deployment_ berakhiran domain `*.vercel.app` milik tim frontend.

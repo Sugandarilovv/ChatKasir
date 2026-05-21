@@ -25,7 +25,8 @@ const register = async (req, res) => {
   });
 
   return res.status(201).json({
-    message: "Registrasi berhasil! Silakan cek email untuk kode OTP.",
+    message:
+      "Registrasi berhasil! Silakan cek email untuk verifikasi lebih lanjut.",
   });
 };
 
