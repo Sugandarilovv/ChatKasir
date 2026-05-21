@@ -9,6 +9,7 @@ const userRoutes = require("./src/routes/userRoutes");
 
 const app = express();
 
+// Konfigurasi CORS
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -23,13 +24,11 @@ app.use(
       );
       const cleanOrigin = origin ? origin.replace(/\/$/, "") : origin;
 
-      // buat bersihin tanda slash
       if (
         !origin ||
         cleanOrigins.includes(cleanOrigin) ||
         cleanOrigin.endsWith(".vercel.app")
       ) {
-        // Baris ".endsWith" di atas otomatis mengizinkan semua domain vercel milik Alfan termasuk link preview-nya!
         callback(null, true);
       } else {
         console.log("Origin yang diblokir oleh CORS:", origin);
@@ -42,5 +41,19 @@ app.use(
   }),
 );
 
+// Middleware untuk parsing JSON
+app.use(express.json());
+
+app.use("/auth", authRoutes);
+app.use("/transactions", transactionRoutes);
+app.use("/report", reportRoutes);
+app.use("/users", userRoutes);
+
+app.get("/", (req, res) => {
+  res.json({ message: "ChatKasir API is running dan CORS aman terkendali!" });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+module.exports = app;
