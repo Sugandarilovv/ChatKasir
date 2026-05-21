@@ -50,7 +50,7 @@ app.use("/report", reportRoutes);
 app.use("/users", userRoutes);
 
 app.get("/", (req, res) => {
-  res.json({ message: "ChatKasir API is running dan CORS aman terkendali!" });
+  res.json({ message: "ChatKasir API is running!" });
 });
 
 const PORT = process.env.PORT || 3000;
