@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  // Menyesuaikan base URL sesuai informasi yang kamu berikan
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://chat-kasir-backend.vercel.app',
   timeout: 10000,
 })
 
@@ -17,7 +18,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      
+      // PERBAIKAN: Hanya paksa refresh atau lempar ke halaman login
+      // JIKA posisi pengguna saat ini BUKAN di halaman /login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

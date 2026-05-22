@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import toast from 'react-hot-toast'
 
 // IMPORT GAMBAR LOGO
 import logoImg from '../assets/logo.png' 
@@ -14,24 +15,77 @@ const STATS = [
 
 export default function Login() {
   const { loading, handleLogin } = useAuth()
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const { register, handleSubmit, setError, clearErrors, formState: { errors } } = useForm()
   const [showPass, setShowPass] = useState(false)
 
-  function onSubmit(data) { handleLogin(data.email, data.password) }
+  async function onSubmit(data) { 
+    // Bersihkan semua error sebelumnya saat tombol diklik
+    clearErrors('email')
+    clearErrors('password')
+
+    try {
+      await handleLogin(data.email, data.password)
+    } catch (error) {
+      if (error.response) {
+        const status = error.response.status;
+        
+        let serverPesan = '';
+        if (error.response.data?.errors && error.response.data.errors.length > 0) {
+          serverPesan = error.response.data.errors[0].msg; 
+        } else {
+          serverPesan = error.response.data?.message || error.response.data?.error || '';
+        }
+        
+        const lowerPesan = String(serverPesan).toLowerCase();
+
+        // 1. Jika status 404 (Not Found), mutlak arahkan ke Email
+        if (status === 404) {
+          setError('email', { 
+            type: 'manual', 
+            message: 'Email yang Anda masukkan belum terdaftar!' 
+          });
+        } 
+        // 2. Jika status 401 (Unauthorized), arahkan ke Password (seperti kasus di video)
+        else if (status === 401) {
+          // Kecuali backend secara eksplisit bilang emailnya yang tidak ada
+          if (lowerPesan === 'user not found' || lowerPesan === 'email tidak ditemukan') {
+            setError('email', { type: 'manual', message: 'Email yang Anda masukkan salah!' });
+          } else {
+            setError('password', { 
+              type: 'manual', 
+              message: 'Password yang Anda masukkan salah!' 
+            });
+          }
+        } 
+        // 3. Jika status 400 atau lainnya, kita bedah kata-katanya
+        else {
+          if (lowerPesan.includes('password') || lowerPesan.includes('sandi')) {
+            setError('password', { type: 'manual', message: serverPesan || 'Password salah!' });
+          } else if (lowerPesan.includes('email') || lowerPesan.includes('user')) {
+            setError('email', { type: 'manual', message: serverPesan || 'Email salah!' });
+          } else {
+            // Fallback keamanan: Beri tahu di kolom password
+            setError('password', { type: 'manual', message: 'Email atau password salah!' });
+          }
+        }
+      } else {
+        // Jika jaringan mati / gagal terhubung
+        toast.error(error.message || 'Terjadi kesalahan jaringan.', {
+          duration: 3500, 
+          position: 'top-center',
+        });
+      }
+    }
+  }
 
   return (
-    // PERBAIKAN 1: Layout vertikal di HP, horizontal di laptop. 
-    // Background diubah dari putih menjadi gradient hijau ala Sidebar.
-    // min-h-dvh digunakan untuk memperbaiki peringatan linter.
     <div className="flex flex-col lg:flex-row min-h-dvh bg-linear-to-b from-[#f0fff8] via-[#e8faf2] to-[#f0fdf9] font-sans w-full">
       
-      {/* PERBAIKAN 2: Class 'hidden' dihapus agar panel ini muncul di HP. Menggunakan xl:w-120 sesuai standar Tailwind */}
       <div className="flex flex-col w-full lg:w-5/12 xl:w-120 shrink-0 relative bg-green-950 overflow-hidden shadow-xl z-10">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-green-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
 
         <div className="relative z-10 flex flex-col h-full p-8 xl:p-12">
-          {/* LOGO: Sekarang posisinya menjadi Header di bagian atas saat di HP */}
           <div className="flex items-center gap-3 mb-8 lg:mb-auto">
             <img 
               src={logoImg} 
@@ -66,7 +120,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* PERBAIKAN 3: Form Area diubah menjadi transparan agar background gradient utamanya bersinar */}
       <div className="flex-1 flex flex-col justify-center p-6 sm:p-10 md:p-12 bg-transparent">
         <div className="w-full max-w-md mx-auto my-4 lg:my-auto animate-fade-up">
           

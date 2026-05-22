@@ -28,7 +28,8 @@ export function useAuth() {
       showToast('Berhasil masuk!', 'success')
       navigate('/dashboard')
     } catch (err) {
-      showToast(getErrorMessage(err), 'error')
+      // PERBAIKAN: Lempar (throw) error ini ke Login.jsx agar pop-up bisa di-custom durasinya
+      throw err
     } finally { setLoading(false) }
   }
 
