@@ -255,7 +255,7 @@ export default function EditProfil() {
                   </svg>
                   Menyimpan...
                 </>
-              ) : '✓ Simpan Perubahan'}
+              ) : 'Simpan Perubahan'}
             </button>
           </div>
         </div>
