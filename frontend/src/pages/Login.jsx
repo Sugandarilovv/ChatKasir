@@ -19,7 +19,6 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false)
 
   async function onSubmit(data) { 
-    // Bersihkan semua error sebelumnya saat tombol diklik
     clearErrors('email')
     clearErrors('password')
 
@@ -28,52 +27,25 @@ export default function Login() {
     } catch (error) {
       if (error.response) {
         const status = error.response.status;
-        
-        let serverPesan = '';
-        if (error.response.data?.errors && error.response.data.errors.length > 0) {
-          serverPesan = error.response.data.errors[0].msg; 
-        } else {
-          serverPesan = error.response.data?.message || error.response.data?.error || '';
-        }
-        
+        const serverPesan = error.response.data?.message || error.response.data?.error || '';
         const lowerPesan = String(serverPesan).toLowerCase();
 
-        // 1. Jika status 404 (Not Found), mutlak arahkan ke Email
-        if (status === 404) {
-          setError('email', { 
-            type: 'manual', 
-            message: 'Email yang Anda masukkan belum terdaftar!' 
-          });
+        // LOGIKA BARU: Jika status 401, beri pesan di KEDUA kolom agar user tidak bingung
+        if (status === 401) {
+          const pesan = 'Email atau password salah. Silakan periksa kembali.';
+          setError('email', { type: 'manual', message: pesan });
+          setError('password', { type: 'manual', message: pesan });
         } 
-        // 2. Jika status 401 (Unauthorized), arahkan ke Password (seperti kasus di video)
-        else if (status === 401) {
-          // Kecuali backend secara eksplisit bilang emailnya yang tidak ada
-          if (lowerPesan === 'user not found' || lowerPesan === 'email tidak ditemukan') {
-            setError('email', { type: 'manual', message: 'Email yang Anda masukkan salah!' });
-          } else {
-            setError('password', { 
-              type: 'manual', 
-              message: 'Password yang Anda masukkan salah!' 
-            });
-          }
-        } 
-        // 3. Jika status 400 atau lainnya, kita bedah kata-katanya
+        // Jika 404, sudah benar diarahkan ke email
+        else if (status === 404) {
+          setError('email', { type: 'manual', message: 'Email tidak terdaftar.' });
+        }
         else {
-          if (lowerPesan.includes('password') || lowerPesan.includes('sandi')) {
-            setError('password', { type: 'manual', message: serverPesan || 'Password salah!' });
-          } else if (lowerPesan.includes('email') || lowerPesan.includes('user')) {
-            setError('email', { type: 'manual', message: serverPesan || 'Email salah!' });
-          } else {
-            // Fallback keamanan: Beri tahu di kolom password
-            setError('password', { type: 'manual', message: 'Email atau password salah!' });
-          }
+          // Fallback umum
+          toast.error(serverPesan || 'Terjadi kesalahan.', { duration: 3500 });
         }
       } else {
-        // Jika jaringan mati / gagal terhubung
-        toast.error(error.message || 'Terjadi kesalahan jaringan.', {
-          duration: 3500, 
-          position: 'top-center',
-        });
+        toast.error('Gagal terhubung ke server.', { duration: 3500 });
       }
     }
   }
