@@ -182,8 +182,104 @@ const getTransactions = async (req, res) => {
   }
 };
 
+// GET /transactions/report — utk suplai data ke dashboard frontend
+const getDashboardReport = async (req, res) => {
+  const user_id = req.user.id;
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    return res
+      .status(400)
+      .json({
+        error:
+          "Query startDate dan endDate wajib diisi. Contoh: ?startDate=2026-05-01&endDate=2026-05-07",
+      });
+  }
+
+  try {
+    const { data: transactions, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user_id)
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    let totalRevenue = 0;
+    let totalItemsSold = 0;
+    const uniqueTransactions = new Set();
+    const uniqueDays = new Set();
+    const dailyRevenue = {};
+    const productStats = {};
+
+    transactions.forEach((item) => {
+      totalRevenue += item.total;
+      totalItemsSold += item.quantity;
+
+      uniqueTransactions.add(item.extraction_id);
+      uniqueDays.add(item.transaction_date);
+
+      const date = item.transaction_date;
+      if (!dailyRevenue[date]) dailyRevenue[date] = 0;
+      dailyRevenue[date] += item.total;
+
+      const product = item.product_name;
+      if (!productStats[product]) {
+        productStats[product] = { total_sold: 0, total_revenue: 0 };
+      }
+      productStats[product].total_sold += item.quantity;
+      productStats[product].total_revenue += item.total;
+    });
+
+    const totalTransactions = uniqueTransactions.size;
+    const totalDaysCount = uniqueDays.size;
+
+    const averageOrderValue =
+      totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+    const averageRevenuePerDay =
+      totalDaysCount > 0 ? totalRevenue / totalDaysCount : 0;
+
+    const chartData = Object.keys(dailyRevenue)
+      .map((date) => ({
+        date: date,
+        revenue: dailyRevenue[date],
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const topProducts = Object.keys(productStats)
+      .map((name) => ({
+        name: name,
+        total_sold: productStats[name].total_sold,
+        total_revenue_generated: productStats[name].total_revenue,
+      }))
+      .sort((a, b) => b.total_revenue_generated - a.total_revenue_generated)
+      .slice(0, 5);
+
+    return res.status(200).json({
+      message: "Data laporan dashboard berhasil di-generate",
+      summary: {
+        total_revenue: totalRevenue, // Pemasukan rentang waktu ini (Bisa harian/mingguan/bulanan)
+        total_transactions: totalTransactions, // Jumlah nota/pesanan
+        total_items_sold: totalItemsSold, // Total produk/item terjual (Buat footer tabel Alfan)
+        average_order_value: averageOrderValue, // Rata-rata per pesanan
+        average_revenue_per_day: averageRevenuePerDay, // Rata-rata uang masuk per hari
+      },
+      chart_data: chartData, // Data buat Grafik Naik-Turun
+      top_products: topProducts, // Data buat Menu Paling Laris
+      transactions: transactions, // Daftar produk lengkap
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: "Gagal memproses laporan: " + error.message });
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactions,
   analyzeTransaction,
+  getDashboardReport,
 };
