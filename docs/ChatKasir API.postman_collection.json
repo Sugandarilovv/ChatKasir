@@ -1,0 +1,260 @@
+{
+  "info": {
+    "_postman_id": "179f37f7-28bb-47d0-91ff-bb6736969632",
+    "name": "ChatKasir API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54350632"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Account",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"password\": \"123456\",\r\n  \"full_name\": \"Reihan Ersa\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/auth/register",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"token\": \"123456\" \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/auth/verify-otp",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["auth", "verify-otp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Account",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\",\r\n  \"password\": \"123456\" \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/auth/login",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"cptprice7778@gmail.com\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/auth/update-password",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["auth", "update-password"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update Profile & Photo",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc5MzU5MDI1LCJpYXQiOjE3NzkzNTU0MjUsImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3OTM1NTQyNX1dLCJzZXNzaW9uX2lkIjoiYzAwMGY2ZWUtNDZkNi00YzI4LWFhYTUtZmIwMDJmYjU5NDdjIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.bf-U_-VchDSUA48HPyvi-4htZSPiFGNLzky9rGVxVulLsPZkYOFKS8ct81wDO0jQDHLJkmJjmMigqI6V4PVTTA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"full_name\": \"Reihan Ersa Putra\",\r\n  \"avatar_url\": \"https://i.pinimg.com/736x/f6/25/08/f6250836523da9ea4f696b8b3cfcc817.jpg\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/users/profile",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["users", "profile"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Create Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc5MzI2NzgxLCJpYXQiOjE3NzkzMjMxODEsImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3OTMyMzE4MX1dLCJzZXNzaW9uX2lkIjoiZTBlMGIxNzgtZTUyMS00MzU1LWFlNzMtYzRmMGQ1N2ZhNWIzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.SbD_U0wJvvFk5qBdxRudu_uff16GWP_Ia4UpY36EiWMTgyfuHJ_6EvcEOAiewnKKGGGdwn8KLLo0dPBWvEmeuA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"raw_text\": \"[07.42, 22/4/2026] Pembeli: bang pesen 2 nasi goreng ya\\n[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/transactions",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["transactions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Transactions",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc5MzU5NTMxLCJpYXQiOjE3NzkzNTU5MzEsImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3OTM1NTkzMX1dLCJzZXNzaW9uX2lkIjoiMTRlMjA5NDQtODAzZi00MWQwLTg4ZWYtN2E5NmMzOGExY2Q5IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.jZk4tQeG4KfKG8Uk7s4gekp4AKvQ6jqfJsQtkzOdzElaemeQFHJAXeyTjiGhrfk8DJxZ8TjdtVDG2gpecH0x3Q",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/transactions",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["transactions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Get Monthly Reports",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNjZTMwOTI2LTQ1NDgtNGRjYy04YzYzLThjZWMwZDllZTQ5NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL29kbGh5YXhsZW1oemVlY3p1ZHNzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc5MzU5NTMxLCJpYXQiOjE3NzkzNTU5MzEsImVtYWlsIjoiY3B0cHJpY2U3Nzc4QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjcHRwcmljZTc3NzhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlJlaWhhbiBFcnNhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkYzY5Yjg1My1lOTdkLTQ0ZmItYmRmYy01MzY4YzQ2YjdjZWIifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3OTM1NTkzMX1dLCJzZXNzaW9uX2lkIjoiMTRlMjA5NDQtODAzZi00MWQwLTg4ZWYtN2E5NmMzOGExY2Q5IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.jZk4tQeG4KfKG8Uk7s4gekp4AKvQ6jqfJsQtkzOdzElaemeQFHJAXeyTjiGhrfk8DJxZ8TjdtVDG2gpecH0x3Q",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://chat-kasir-backend.vercel.app/report/monthly",
+              "protocol": "https",
+              "host": ["chat-kasir-backend", "vercel", "app"],
+              "path": ["report", "monthly"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

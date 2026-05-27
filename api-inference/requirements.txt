@@ -1,0 +1,21 @@
+# Web framework
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# Settings
+pydantic-settings>=2.2.0
+
+# ML / inference
+tensorflow>=2.17.0
+numpy>=1.26.0
+
+# Tokenizer (HuggingFace WordPiece — dipakai AI-1)
+tokenizers>=0.15.0
+
+# Auto-download model dari Google Drive
+gdown
+
+# Testing
+pytest>=8.2.0
+httpx>=0.27.0
+psutil>=5.9.0
