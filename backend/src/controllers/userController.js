@@ -38,4 +38,28 @@ const updateProfile = async (req, res) => {
   return res.status(200).json({ message: "Profil berhasil diperbarui", data });
 };
 
-module.exports = { getProfile, updateProfile };
+// DELETE /users/account — untuk hapus akun permanen
+const deleteAccount = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const { error: dbError } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", userId);
+
+    if (dbError) throw dbError;
+
+    const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+
+    if (authError) throw authError;
+
+    return res.status(200).json({
+      message: "Akun dan seluruh data berhasil dihapus secara permanen.",
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateProfile, deleteAccount };
