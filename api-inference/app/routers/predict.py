@@ -1,24 +1,9 @@
 """
-Router POST /predict — menerima raw chat WhatsApp, mengembalikan hasil prediksi.
-
-Alur per request:
-  1. Validasi API key (security dependency)
-  2. Validasi panjang input (< 5 karakter → INVALID_INPUT error_code 1001)
-  3. Preprocess: hapus timestamp, normalisasi slang, gabung [SEP]
-  4. Inferensi async: model_loader.predict_single(teks_bersih) via run_in_executor
-     agar event loop FastAPI tidak diblokir oleh komputasi TensorFlow
-  5. Postprocess: hitung total + confidence (handle price=null, product=unknown)
-  6. Kembalikan PredictResponse ke FS-2 (Reihan)
-
-Edge cases yang ditangani:
-  - raw_text < 5 karakter  → 422 INVALID_INPUT (error_code 1001)
-  - price tidak disebutkan → price_satuan: null, total: null, confidence: MEDIUM
-  - produk tidak dikenal   → product: "unknown", confidence: MEDIUM
+Router POST /predict — Menerima korpus teks WhatsApp dan mengembalikan response JSON komersial.
 """
 
 import asyncio
 from functools import partial
-
 from fastapi import APIRouter, Depends
 
 from app.core.errors import InvalidInputError
@@ -33,8 +18,6 @@ from app.services.processing import (
 
 router = APIRouter()
 
-_MIN_TEXT_LEN = 5
-
 
 @router.post("", response_model=PredictResponse)
 async def predict(
@@ -42,70 +25,21 @@ async def predict(
     _: str = Depends(require_api_key),
 ) -> PredictResponse:
     """
-    Terima raw chat WhatsApp, kembalikan list transaksi yang diprediksi.
-
-    **Request body**
-    ```json
-    {
-      "raw_text": "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\\n[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya"
-    }
-    ```
-
-    **Response sukses**
-    ```json
-    {
-      "results": [
-        {
-          "product": "nasi goreng",
-          "quantity": 2,
-          "price_satuan": 10000,
-          "total": 20000,
-          "confidence": "HIGH"
-        }
-      ],
-      "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya"
-    }
-    ```
-
-    **Response — harga tidak disebutkan**
-    ```json
-    {
-      "results": [{"product": "es teh", "quantity": 2, "price_satuan": null, "total": null, "confidence": "MEDIUM"}],
-      "clean_text": "..."
-    }
-    ```
-
-    **Response — produk tidak dikenal**
-    ```json
-    {
-      "results": [{"product": "unknown", "quantity": 1, "price_satuan": null, "total": null, "confidence": "MEDIUM"}],
-      "clean_text": "..."
-    }
-    ```
-
-    **Confidence levels:**
-    - `HIGH`   — total dari chat cocok dengan prediksi model
-    - `MEDIUM` — harga/produk tidak dikenali, atau tidak ada total di chat
-    - `LOW`    — total di chat tidak cocok dengan prediksi model
+    Menerima raw chat teks kotor WhatsApp kasir, mengembalikan JSON restuful terstruktur bersih.
     """
-    # ── Step 1: Validasi panjang input ────────────────────────────────────────
-    # Dilakukan eksplisit di sini agar error_code = 1001 (INVALID_INPUT) konsisten,
-    # bukan format default Pydantic 422 yang berbeda strukturnya.
+    # 1. Validasi panjang batas karakter input awal
     validate_input_length(body.raw_text)
 
-    # ── Step 2: Preprocessing ─────────────────────────────────────────────────
+    # 2. Jalankan pipa pencucian teks cerdas universal regex
     teks_bersih = prepare_model_input(body.raw_text)
 
-    # Jika setelah preprocessing teks kosong (misal: hanya timestamp tanpa isi)
-    if not teks_bersih.strip():
+    if not teks_bersih.replace("[SEP]", "").strip():
         raise InvalidInputError(
-            "Teks tidak mengandung konten setelah preprocessing. "
-            "Pastikan chat berisi pesan dari Pembeli dan/atau Penjual."
+            "Teks tidak mengandung konten informatif setelah dibersihkan dari timestamp."
         )
 
-    # ── Step 3: Inferensi (async — tidak memblokir event loop) ───────────────
-    # TensorFlow predict() bersifat CPU-bound/blocking. Jalankan di thread pool
-    # agar FastAPI dapat melayani request lain selagi model berjalan.
+    # 3. Eksekusi model saraf (Jalur Non-Blocking Thread Pool Executor)
+    # Menjaga event-loop FastAPI tetap responsif melayani klien lain saat TensorFlow memproses matrix
     loader = ModelLoader.get_instance()
     loop   = asyncio.get_event_loop()
     raw_output = await loop.run_in_executor(
@@ -113,9 +47,19 @@ async def predict(
         partial(loader.predict_single, teks_bersih),
     )
 
-    # ── Step 4: Postprocessing ────────────────────────────────────────────────
+    # 4. Ambil hasil pengayaan nilai subtotal dan penentuan bendera confidence
     enriched_list = postprocess(raw_output, teks_bersih)
 
-    # ── Step 5: Build response ────────────────────────────────────────────────
+    # 5. Konversi data ke dalam baris skema OrderItem Pydantic
     items = [OrderItem(**pesanan) for pesanan in enriched_list]
-    return PredictResponse(results=items, clean_text=teks_bersih)
+    
+    # Hitung nilai total transaksi riil keseluruhan belanja katering
+    total_akumulasi = sum(item.subtotal for item in items if item.subtotal is not None)
+
+    # 6. Kembalikan response final sukses dengan status 200 ke Express.js Backend
+    return PredictResponse(
+        status="success",
+        results=items,
+        total_akumulasi=total_akumulasi,
+        clean_text=teks_bersih
+    )
