@@ -110,26 +110,128 @@ ALOKASI_KATEGORI = {
     'lainnya'         : 0.02,
 }
 
-SAPAAN  = ['bang', 'kak', 'kk', 'bg', 'mas', 'mbak', 'min', 'bu', 'pak', '']
-PENUTUP = ['ya', 'dong', 'kak', 'ya kak', 'dong kak', 'nih', '']
+SAPAAN = [
+    # --- Sapaan Standar & Singkatan ---
+    'bang', 'kak', 'kk', 'bg', 'mas', 'mbak', 'min', 'bu', 'pak', 'pakde', 'bude', 'aa', 'teh', '', 
+    
+    # --- Nama Orang Acak (Mencegah salah tebak tag PRICE/PROD) ---
+    'budi', 'deni', 'andi', 'ani', 'siti', 'dewi', 'rudi', 'joko', 'reza', 'putri', 'bapak', 'ibu',
+    
+    # --- Istilah Gaul & Sapaan Chat Komunitas ---
+    'gan', 'sis', 'bro', 'cuy', 'bos', 'juragan', 'admin', 'halo admin', 'p', 'ping', 'assalamualaikum', 'wr wb',
+    
+    # --- Penanda Waktu Real-Time ---
+    'malam', 'siang', 'pagi', 'sore', 'subuh', 'hallo pagi', 'hallo sore', 'hallo malam'
+]
+
+PENUTUP = [
+    # --- Tanpa Kata Penutup ---
+    '', 
+    
+    # --- Partikel Penegas & Kata Seru Kasual ---
+    'ya', 'dong', 'nih', 'tuh', 'loh', 'kok', 'deh', 'kah', 'saja', 'aja', 'doang',
+    'yaaa', 'donggg', 'dehh', 'yah', 'dulu', 'ajaa',
+    
+    # --- Kombinasi Sapaan Akrab ---
+    'kak', 'ya kak', 'dong kak', 'deh kak', 'ya bang', 'dong bang', 'deh bang',
+    'ya mas', 'dong mas', 'deh mas', 'ya mbak', 'dong mbak', 'deh mbak',
+    'ya min', 'dong min', 'deh min', 'pak', 'ya pak', 'bu', 'ya bu', 'gan', 'ya gan',
+    
+    # --- Penutup Berbasis Harapan / Kecepatan (Urgency Noise) ---
+    'cepet ya', 'buruan ya', 'jangan lama', 'gercep ya', 'ditunggu', 'oke ditunggu',
+    'langsung ya', 'sekarang ya', 'siap ditunggu', 'makasih', 'terima kasih',
+    'suwun', 'matur suwun', 'thanks', 'thx ya'
+]
+
 
 # ============================================================
 # [FIX BARU] Tambahan Noise/Modifier & QTY String
 # ============================================================
-MODIFIER = ['', 'level dewa', 'pedes mampus', 'gak pake bawang', 'esnya dikit aja',
-            'dibungkus', 'makan sini', 'pedas sedang', 'anget aja']
-QTY_STRING = ['satu', 'dua', 'seporsi', 'sebungkus', 'setengah', 'tiga piring',
-              'segelas', 'sebotol']
+MODIFIER = [
+    # --- Tanpa Modifier ---
+    '', 
+    
+    # --- Catatan Rasa & Level Pedas (Ekstrem) ---
+    'level dewa', 'pedes mampus', 'gak pake bawang', 'esnya dikit aja', 'pedas sedang', 
+    'anget aja', 'level 5', 'level 10', 'extra pedas', 'jangan pedes', 'pake sambel ijo',
+    
+    # --- Aturan Penyajian & Kemasan ---
+    'dibungkus', 'makan sini', 'bawa pulang', 'bumbu pisah', 'paket', 'pack', 'pake kotak', 
+    'porsi gede', 'porsi double', 'porsi kecil', 'setengah porsi', 'pisahin kuahnya',
+    
+    # --- Konteks Niat / Tujuan Acara ---
+    'buat kantor', 'untuk anak saya', 'buat acara keluarga', 'buat arisan', 'buat buka puasa', 
+    'titipan bos', 'buat makan siang', 'buat bekel sekolah',
+    
+    # --- Ungkapan Emosi / Kecepatan (Urgency Noise) ---
+    'cepet ya', 'pake qris', 'tolong buruan', 'jangan lama ya', 'anter sekarang', 'santai aja',
+    'yang kyk biasa', 'pake ojol', 'langsung proses ya'
+]
+
+QTY_STRING = [
+    # --- Ejaan Angka Dasar (Sering Diketik Pembeli) ---
+    'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh',
+    
+    # --- Satuan Porsi & Bungkus Umum (Awalan 'Se-') ---
+    'seporsi', 'sebungkus', 'setengah', 'setengah porsi', 'porsi gede', 'porsi jumbo', 'porsi kecil',
+    
+    # --- Satuan Wadah Makanan Populer (Dunia Nyata UMKM) ---
+    'sebungkus', 'dua bungkus', 'tiga bungkus', 
+    'seporsi', 'dua porsi', 'tiga porsi', 'lima porsi',
+    'semangkok', 'dua mangkuk', 'lima mangkuk', 
+    'sepiring', 'tiga piring', 'se-pack', 'dua pack', 'lima pack',
+    'sebox', 'dua box', 'lima kotak', 'sepaket', 'dua paket',
+    'semika', 'dua mika', 'se-thinwall', 'dua thinwall',
+    
+    # --- Satuan Wadah Minuman Populer (Es & Kopi) ---
+    'segelas', 'dua gelas', 'tiga gelas', 
+    'sebotol', 'dua botol', 'tiga botol',
+    'secup', 'satu cup', 'dua cup', 'tiga cup', 'lima cup',
+    'seplastik', 'dua plastik', 'sekotak', 'sedus'
+]
 
 def get_random_qty():
     """Fungsi untuk mix angka dan ejaan string (50:50)"""
     if random.random() < 0.5:
-        return str(random.randint(1, 10))
+        return str(random.randint(1, 25))
     else:
         return random.choice(QTY_STRING)
 
+def get_random_harga():
+    """Fungsi mendistribusikan harga dari puluhan ribu hingga jutaan"""
+    probabilitas = random.random()
+    if probabilitas < 0.50:
+        return random.randint(5, 99) * 1000       # 5.000 - 99.000
+    elif probabilitas < 0.85:
+        return random.randint(100, 999) * 1000    # 100.000 - 999.000
+    else:
+        return random.randint(1, 50) * 1000000     # 1.000.000 - 50.000.000
+
+def format_price_text(price: int) -> str:
+    # Membuat format pemisah ribuan titik Indonesia asli (cth: 15.000, 3.500.000)
+    formatted_base = f"{price:,}".replace(",", ".")
+    
+    if price >= 1000000:
+        formats = [
+            f"{price // 1000000}jt",
+            f"{price // 1000000} juta",
+            formatted_base,
+            f"rp{formatted_base}",
+            f"rp {formatted_base}"
+        ]
+    else:
+        formats = [
+            f"{price // 1000}rb",
+            f"{price // 1000}k",
+            f"{price // 1000} ribu",
+            formatted_base,
+            f"rp{price // 1000}rb",
+            f"rp {formatted_base}"
+        ]
+    return random.choice(formats)
+
 # ============================================================
-# [FIX-1] TEMPLATES_PEMBELI — ditambah pola PRODUK-di-depan
+# [FIX-1] TEMPLATES_PEMBELI — Pola Dunia Nyata yang Sangat Liar
 # ============================================================
 TEMPLATES_PEMBELI = [
     # --- POLA LAMA: QTY di depan ---
@@ -146,43 +248,76 @@ TEMPLATES_PEMBELI = [
 
     # --- POLA BARU: PRODUK di depan (Mengatasi Posisi Terbalik) ---
     "{sapaan} order {produk} {modifier} {qty} {penutup}",
-    "pesen {produk} nya {qty} porsi {penutup}",
+    "pesen {produk} nya {qty} {penutup}",
     "{sapaan} {produk} {modifier} {qty} {penutup}",
-    "{produk} {qty} bungkus ya {sapaan}",
+    "{produk} {qty} ya {sapaan}",
     "mau {produk} jumlahnya {qty} {penutup}",
 
-    # --- [FIX BARU] POLA PEMBELI SEBUT HARGA ---
-    "{sapaan} pesen {produk} {modifier} yang harganya {harga} {qty} porsi {penutup}",
-    "{sapaan} {produk} {qty} bungkus, beneran {harga} kan {penutup}",
+    # --- POLA KASUAL / AKSI DUNIA NYATA ---
+    "buatin {produk} {modifier} {qty} {penutup}",
+    "bungkusin {qty} {produk} {modifier} {penutup}",
+    "bikinin {produk} {qty} {modifier} {penutup}",
+    "nitip {qty} {produk} {modifier} {penutup}",
+    "{sapaan} masih ada {produk}? kalau ada mau {qty} {modifier} {penutup}",
+    "{produk} {modifier} {qty} aja {penutup}",
+    "{sapaan} {produk} {modifier} dibikin {qty} ya",
+    
+    # --- POLA PENGANTAR ---
+    "mau pesen buat {qty} {produk} {modifier} {penutup}",
+    "tolong siapin {qty} {produk} {modifier} {penutup}",
+    "order {produk} {modifier} untuk {qty} {penutup}",
+    "bikin {qty} {produk} {modifier} {penutup}",
+
+    # --- POLA PEMBELI SEBUT HARGA ---
+    "{sapaan} pesen {produk} {modifier} yang harganya {harga} {qty} {penutup}",
+    "{sapaan} {produk} {qty}, beneran {harga} kan {penutup}",
     "mau {qty} {produk} {modifier} budget {harga} {penutup}",
+    "{produk} {modifier} yang {harga} pesen {qty} {penutup}",
+    "beli {produk} {harga} an {qty} {penutup}",
 ]
 
 TEMPLATES_PENJUAL = [
+    # --- POLA STANDAR ---
     "oke kak {produk} harganya {harga} totalnya {total}",
-    "siap kak {produk} {harga} per porsi total {total} ya",
+    "siap kak {produk} {harga} total {total} ya",
     "{produk} {harga} ya kak jadi {total}",
     "baik kak {produk} {harga} satuan totalnya {total}",
-    "noted kak {produk} {harga} per porsi totalnya {total}",
+    "noted kak {produk} {harga} totalnya {total}",
     "oke {produk} harga {harga} total {total} ya kak",
     "siap {produk} {harga} totalnya {total} kak",
+
+    # --- POLA NOTA / RINCIAN KASIR ---
+    "rincian pesanan: {produk} ({harga}) jadi {total} ya kak",
+    "pesanan masuk: {produk} x {harga} = {total}",
+    "halo kak, pesanan {produk} seharga {harga} sudah kami proses, total bayar {total}",
+    "total tagihan {total} untuk {produk} harga {harga} per item ya",
+    "baik, {total} ya kak rinciannya {produk} harganya {harga}",
 ]
 
 # ============================================================
-# [FIX-1] TEMPLATES_TANPA_HARGA_PEMBELI — tambah pola PRODUK-di-depan
+# [FIX-1] TEMPLATES_TANPA_HARGA_PEMBELI 
 # ============================================================
 TEMPLATES_TANPA_HARGA_PEMBELI = [
-    # --- POLA LAMA ---
+    # --- POLA STANDAR ---
     "{sapaan} {qty} {produk} {modifier} {penutup}",
     "kak mau pesen {qty} {produk} {modifier} {penutup}",
     "minta {qty} {produk} {modifier} {penutup}",
     "{qty} {produk} {modifier} {penutup}",
     "pesan {qty} {produk} {modifier} {penutup}",
 
-    # --- POLA BARU: PRODUK di depan ---
+    # --- POLA PRODUK DI DEPAN ---
     "{sapaan} order {produk} {modifier} {qty} {penutup}",
-    "pesen {produk} nya {qty} porsi {penutup}",
+    "pesen {produk} nya {qty} {penutup}",
     "{sapaan} {produk} {modifier} {qty} {penutup}",
     "mau {produk} jumlahnya {qty} {penutup}",
+
+    # --- POLA SANGAT SINGKAT / AGGRESIF (Dunia Nyata) ---
+    "{produk} {qty}",
+    "{qty} {produk}",
+    "{produk} {qty} {modifier}",
+    "buatin {produk} {qty}",
+    "bungkusin {qty} {produk}",
+    "{sapaan} {produk} {qty} cepet ya",
 ]
 
 TEMPLATES_TANPA_HARGA_PENJUAL = [
@@ -192,31 +327,50 @@ TEMPLATES_TANPA_HARGA_PENJUAL = [
     "siap kak",
     "baik kak",
     "oke noted",
-    "",
+    "pesanan sedang disiapkan",
+    "oke, mohon ditunggu sebentar ya",
+    "siap, segera diproses",
+    "baik, langsung kami buatkan",
+    "", "", "" # Sengaja diperbanyak string kosong agar model terbiasa dengan chat yang tidak dibalas kasir
 ]
 
 # ============================================================
 # [FIX-2] TEMPLATES PESANAN MAJEMUK (Multi-Item)
 # ============================================================
 TEMPLATES_MAJEMUK_PEMBELI = [
-    # --- POLA LAMA ---
+    # --- POLA STANDAR / KATA HUBUNG ---
     "{sapaan} pesen {qty1} {produk1} dan {qty2} {produk2} {penutup}",
     "{sapaan} {produk1} {qty1} sama {produk2} {qty2} {penutup}",
     "order {qty1} {produk1}, terus {produk2} nya {qty2} {penutup}",
     "{produk1} {qty1} bungkus dan {qty2} {produk2} {penutup}",
     "{sapaan} mau {qty1} {produk1} sama {qty2} {produk2} {penutup}",
-    "pesan {produk1} {qty1} porsi dan {produk2} {qty2} porsi {penutup}",
-
-    # --- [FIX BARU] POLA BRUTAL/TANPA KATA HUBUNG ---
+    
+    # --- POLA BRUTAL / TANPA KATA HUBUNG ---
     "{produk1} {modifier} {qty1}, {produk2} {qty2} {penutup}",
     "pesan {qty1} {produk1} {qty2} {produk2} {penutup}",
+    "{qty1} {produk1} {qty2} {produk2}",
+    "{produk1} {qty1} {produk2} {qty2}",
+    
+    # --- POLA PLUS / SIMBOL ---
+    "{sapaan} {qty1} {produk1} + {qty2} {produk2} {penutup}",
+    "{produk1} {qty1} + {produk2} {qty2} ya",
+    "mau {qty1} {produk1} tambah {qty2} {produk2} {penutup}",
+    
+    # --- POLA SEKALIAN (Khas Indonesia) ---
+    "aku pesen {qty1} {produk1} sekalian {produk2} {qty2} ya",
+    "pesan {produk1} {qty1} {modifier}, oh iya sekalian {produk2} {qty2} ya",
 ]
 
 TEMPLATES_MAJEMUK_PENJUAL = [
+    # --- POLA STANDAR ---
     "oke kak {produk1} {qty1} dan {produk2} {qty2}, totalnya {total_semua}",
     "siap kak, {produk1} {harga1} dan {produk2} {harga2}, jadi total {total_semua} ya",
-    "noted kak {produk1} {qty1} porsi {harga1} sama {produk2} {qty2} porsi {harga2}, total {total_semua}",
+    "noted kak {produk1} {qty1} {harga1} sama {produk2} {qty2} {harga2}, total {total_semua}",
+    
+    # --- POLA MATEMATIKA / STRUKTURAL ---
     "baik kak, {qty1} {produk1} ({harga1}) + {qty2} {produk2} ({harga2}) = {total_semua} ya",
+    "pesanan: {produk1} {harga1}, {produk2} {harga2}. Total bayar = {total_semua}",
+    "siap. {produk1} {harga1} & {produk2} {harga2}. total semuanya {total_semua} kak",
 ]
 
 # ============================================================
@@ -472,27 +626,25 @@ def generate_dataset(weighted_list, formal_to_slang, target_rows,
           f"| NoHarga={n_no_harga} | Majemuk={n_majemuk} | "
           f"Total={n_pola1+n_pola2+n_pola3+n_no_harga+n_majemuk}")
 
-    harga_range = list(range(3000, 75001, 1000))
-
     print("  Generating Pola 1...")
     for _ in range(n_pola1):
         rows.append(generate_order_dengan_harga(
             random.choice(weighted_list), get_random_qty(),
-            random.choice(harga_range), pattern=1
+            get_random_harga(), pattern=1
         ))
 
     print("  Generating Pola 2...")
     for _ in range(n_pola2):
         rows.append(generate_order_dengan_harga(
             random.choice(weighted_list), get_random_qty(),
-            random.choice(harga_range), pattern=2
+            get_random_harga(), pattern=2
         ))
 
     print("  Generating Pola 3 (slang)...")
     for _ in range(n_pola3):
         row = generate_order_dengan_harga(
             random.choice(weighted_list), get_random_qty(),
-            random.choice(harga_range), pattern=3
+            get_random_harga(), pattern=3
         )
         row["input_text"] = apply_slang(row["input_text"], formal_to_slang)
         rows.append(row)
@@ -512,24 +664,24 @@ def generate_dataset(weighted_list, formal_to_slang, target_rows,
         # Proteksi: pastikan dua produk berbeda dalam satu baris
         while p1 == p2:
             p2 = random.choice(weighted_list)
-
+        
         rows.append(generate_order_majemuk(
-            p1, get_random_qty(), random.choice(harga_range),
-            p2, get_random_qty(), random.choice(harga_range)
+            p1, get_random_qty(), get_random_harga(),
+            p2, get_random_qty(), get_random_harga() 
         ))
 
     random.shuffle(rows)
     return rows
 
 # ============================================================
-# MAIN — hanya generate synthetic_orders_1000food_100000.csv
+# MAIN — hanya generate chatkasir_synthetic.csv
 # ============================================================
 if __name__ == "__main__":
     import os
 
-    FOOD_PATH  = '../final/food_utama.csv'
-    SLANG_PATH = '../final/slang_utama.csv'
-    OUTPUT_DIR = '.'
+    FOOD_PATH  = 'data\\final\\food_utama.csv'
+    SLANG_PATH = 'data\\final\\slang_utama.csv'
+    OUTPUT_DIR = 'data\\script-based'
 
     RANDOM_SEED    = 42
     RATIO_POLA_1   = 0.3325
@@ -595,7 +747,7 @@ if __name__ == "__main__":
     print(df_single['product'].value_counts().head(5).to_string())
     print(f"  Preview:\n{df[['input_text','product','quantity','price_satuan','pattern']].head(5).to_string()}")
 
-    FINAL_DIR = '../final'
+    FINAL_DIR = 'data\\final'
     FNAME     = 'chatkasir_synthetic.csv'
  
     # Simpan ke folder script-based (lokal)
