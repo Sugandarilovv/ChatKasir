@@ -1,8 +1,0 @@
-{
-    "vocab_size": 5000,
-    "max_length": 128,
-    "num_tags": 7,
-    "embed_dim": 128,
-    "num_heads": 4,
-    "ff_dim": 256
-}
