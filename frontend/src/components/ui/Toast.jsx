@@ -72,7 +72,7 @@ export function ToastProvider({ children }) {
                 pointerEvents: 'auto',
                 width: 'fit-content' // Supaya box tetap pas dengan tulisan
               }}>
-              <span style={{ fontSize: 13 }}>{ICONS[t.type]}</span>
+              <span style={{ fontSize: 14 }}>{ICONS[t.type]}</span>
               {t.msg}
             </div>
           )

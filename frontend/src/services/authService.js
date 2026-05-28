@@ -18,40 +18,27 @@ export async function login(email, password) {
   }
 
   try {
-    // 1. Login → dapat token & user_id
     const res = await api.post('/auth/login', { email, password })
     const { token, user_id } = res.data
 
-    // Simpan token dulu supaya request berikutnya bisa pakai Bearer
     localStorage.setItem('token', token)
 
-    // 2. Ambil full_name dari tabel users pakai token yang baru dapat
     let full_name = ''
     let avatar_url = null
     try {
       const profileRes = await api.get('/users/profile')
       full_name  = profileRes.data?.data?.full_name  || ''
       avatar_url = profileRes.data?.data?.avatar_url || null
-    } catch (_) {
-      // Kalau gagal ambil profil, tetap lanjut login
-    }
+    } catch (_) {}
 
-    // 3. Simpan semua info user ke localStorage
-    const userObj = {
-      id:    user_id,
-      email,
-      nama:  full_name,
-      foto:  avatar_url,
-    }
+    const userObj = { id: user_id, email, nama: full_name, foto: avatar_url }
     localStorage.setItem('user', JSON.stringify(userObj))
     return res.data
   } catch (err) {
-    // PERBAIKAN: Memastikan error dari backend diteruskan dengan benar ke Login.jsx
-    // Jika tidak ada response (server down), buatkan objek error standar
     if (!err.response) {
-      throw { response: { data: { message: 'Server tidak merespon, periksa koneksi Anda.' } } };
+      throw { response: { data: { message: 'Server tidak merespon, periksa koneksi Anda.' } } }
     }
-    throw err;
+    throw err
   }
 }
 
@@ -65,32 +52,62 @@ export function getCurrentUser() {
   return user ? JSON.parse(user) : null
 }
 
+// ─── FORGOT PASSWORD ────────────────────────────────────────────────────────
+// Langsung pakai Supabase JS client — tidak lewat backend
+// Keuntungan: tidak bergantung pada SMTP/env backend, lebih reliable
 export async function forgotPassword(email) {
-  const res = await api.post('/auth/forgot-password', { email })
-  return res.data
+  const { supabase } = await import('./supabaseClient')
+  const redirectTo = `${window.location.origin}/lupa-password`
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+
+  if (error) {
+    throw { response: { data: { error: error.message } } }
+  }
+  return { message: 'Link reset password sudah dikirim ke email kamu' }
 }
 
-export async function updatePassword(accessToken, refreshToken, password) {
-  const res = await api.put('/auth/update-password', {
+// ─── UPDATE PASSWORD ─────────────────────────────────────────────────────────
+// Restore session dari token recovery URL, lalu update password via Supabase
+export async function updatePassword(accessToken, refreshToken, newPassword) {
+  const { supabase } = await import('./supabaseClient')
+
+  // 1. Restore session pakai token dari link di email
+  const { error: sessionError } = await supabase.auth.setSession({
     access_token:  accessToken,
     refresh_token: refreshToken,
-    new_password:  password,
   })
-  return res.data
+
+  if (sessionError) {
+    throw { response: { data: { error: 'Token tidak valid atau sudah kedaluwarsa. Ulangi proses dari awal.' } } }
+  }
+
+  // 2. Update password
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+  if (error) {
+    throw { response: { data: { error: error.message } } }
+  }
+
+  // 3. Sign out agar sesi recovery bersih, user login ulang dengan password baru
+  await supabase.auth.signOut()
+
+  return { message: 'Password berhasil diperbarui' }
 }
 
+// ─── UPDATE PROFILE ──────────────────────────────────────────────────────────
 export async function updateProfile(nama, foto) {
   const payload = {}
-  if (nama  !== undefined) payload.full_name  = nama
-  if (foto  !== undefined) payload.avatar_url = foto
+  if (nama !== undefined) payload.full_name  = nama
+  if (foto !== undefined) payload.avatar_url = foto
 
   const res = await api.put('/users/profile', payload)
 
   const current = getCurrentUser() || {}
   const updated = {
     ...current,
-    nama: nama  !== undefined ? nama  : current.nama,
-    foto: foto  !== undefined ? foto  : current.foto,
+    nama: nama !== undefined ? nama : current.nama,
+    foto: foto !== undefined ? foto : current.foto,
   }
   localStorage.setItem('user', JSON.stringify(updated))
   return res.data
