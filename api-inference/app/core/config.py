@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     GDRIVE_TOKENIZER_URL: str = "https://drive.google.com/uc?id=1kkwRYlbHFDGXzVPMiYNx-j1Ktjv0wNHM"
     
     # Diselaraskan dengan ID file yang terbukti valid di Notebook 03
-    GDRIVE_SLANG_URL:     str = "https://drive.google.com/uc?id=1vZ769q0ExjO8tUa3kt_O6DPcwBub4uxc"
+    GDRIVE_SLANG_URL:     str = "https://drive.google.com/uc?id=1Ov6cFYB_7J0lGfVYdvm7lByTI0-V36hI"
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     ALLOWED_ORIGINS: List[str] = ["*"]

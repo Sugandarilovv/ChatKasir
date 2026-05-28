@@ -99,11 +99,20 @@ def prepare_model_input(raw_text: str) -> str:
     text = re.sub(r'\b(\d+)\s*(k|rb|ribu)\b', r'\g<1>000', text)
     text = re.sub(r'\b(\d+)\s*(jt|juta)\b', r'\g<1>000000', text)
 
-    # 6. Jalankan Sliding Window pemetaan kosakata kamus slang
-    kata_kata = text.split()
+   # 6. Terapkan Kamus Slang HANYA jika kata tersebut ada persis di kamus
+    kata_kata = []
     if slang_dict:
-        kata_kata = [slang_dict.get(kata, kata) for kata in kata_kata]
-    text = " ".join(kata_kata)
+        for k in text.split():
+            kata_baku = slang_dict.get(k)
+            if kata_baku:
+                # Cegah over-correction: Jika 1 kata slang diubah jadi lebih dari 2 kata baku (indikasi anomali/halusinasi kamus)
+                if len(kata_baku.split()) > 2 and len(k.split()) == 1:
+                    kata_kata.append(k) # Abaikan kamus, pertahankan kata asli
+                else:
+                    kata_kata.append(kata_baku)
+            else:
+                kata_kata.append(k)
+        text = " ".join(kata_kata)
 
     # 7. Bersihkan sisa simbol baca pengganggu inferensi sekuensial
     text = re.sub(r'[^a-z0-9\s\[\]]', ' ', text)
@@ -148,23 +157,20 @@ def postprocess(list_pesanan: List[dict], teks_bersih: str) -> List[dict]:
         avg_conf = item.get("avg_conf_softmax", 0.0)
 
         # FITUR FALLBACK PENYELAMAT PRODUK
-        # Jika AI menyerah (unknown), kita tebak namanya dari teks pembeli
         if product_name == "unknown":
             qty_str = str(quantity)
-            # Ambil bagian chat pembeli saja (teks sebelum token [SEP])
             chat_pembeli = teks_bersih.split('[SEP]')[0]
             
-            # Cari semua teks yang diketik sebelum angka kuantitas
-            # Contoh: "pesan paket ayam bakar madu 10" -> Targetnya "pesan paket ayam bakar madu"
-            match = re.search(rf'(.*?)\s+{qty_str}', chat_pembeli, re.IGNORECASE)
+            # Gunakan \b (word boundary) agar angka "1" tidak mencuri dari dalam "10"
+            match = re.search(rf'(.*?)\s+\b{qty_str}\b', chat_pembeli, re.IGNORECASE)
             
             if match:
                 tebakan = match.group(1).strip()
-                # Bersihkan kata kerja di awal agar murni nama produk
-                tebakan = re.sub(r'^(pesan|order|mau|beli)\s+', '', tebakan, flags=re.IGNORECASE)
+                # Bersihkan ragam kata kerja di awal agar murni nama produk
+                tebakan = re.sub(r'^(pesan|order|mau|beli|minta|tolong|bikinin|bikin)\s+', '', tebakan, flags=re.IGNORECASE).strip()
                 
                 if tebakan:
-                    product_name = tebakan.title()  # Ubah jadi "Paket Ayam Bakar Madu"
+                    product_name = tebakan.title()
 
         # Hitung kalkulasi matematika subtotal murni
         subtotal_item = (quantity * price_satuan) if price_satuan is not None else None
