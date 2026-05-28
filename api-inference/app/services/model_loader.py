@@ -294,14 +294,21 @@ class ModelLoader:
             # FASE 3: Relational Asosiasi (Mapping Berdasarkan Indeks)
             list_pesanan: List[dict] = []
 
-            # 1. Bersihkan produk kosong (mencegah error jika AI menangkap spasi/tanda baca)
+            # 1. Bersihkan produk dari spasi kosong
             list_produk_bersih = [p for p in list_produk if p.strip()]
             list_conf_bersih = [c for p, c in zip(list_produk, list_conf) if p.strip()]
+            
+            # 2. Hapus nilai None dari list_harga agar harga yang gagal diparse tidak menggeser indeks
+            list_harga_bersih = [h for h in list_harga if h is not None]
 
-            # 2. Cari jumlah item terbanyak (Agar QTY dan Harga tidak hilang)
-            max_items = max(len(list_produk_bersih), len(list_qty), len(list_harga))
+            # 3. Penentuan Acuan Baris (Base Length) yang AMAN
+            # Selalu utamakan jumlah produk. JIKA DAN HANYA JIKA AI buta produk (0), baru pakai qty/harga
+            if len(list_produk_bersih) > 0:
+                base_len = len(list_produk_bersih)
+            else:
+                base_len = max(len(list_qty), len(list_harga_bersih))
 
-            if max_items == 0:
+            if base_len == 0:
                 return [{
                     "product_name": _UNKNOWN_PRODUCT,
                     "quantity": 1,
@@ -309,15 +316,15 @@ class ModelLoader:
                     "avg_conf_softmax": 0.0,
                 }]
 
-            # 3. Pasangkan data secara aman
-            for i in range(max_items):
+            # 4. Pasangkan data secara linier dan potong data berlebih (seperti Total Tagihan)
+            for i in range(base_len):
                 prod = list_produk_bersih[i] if i < len(list_produk_bersih) else _UNKNOWN_PRODUCT
                 qty = list_qty[i] if i < len(list_qty) else 1
-                price = list_harga[i] if i < len(list_harga) else None
+                price = list_harga_bersih[i] if i < len(list_harga_bersih) else None
                 conf = list_conf_bersih[i] if i < len(list_conf_bersih) else 0.0
 
                 list_pesanan.append({
-                    "product_name": prod if prod else _UNKNOWN_PRODUCT,
+                    "product_name": prod,
                     "quantity": qty,
                     "price_satuan": price,
                     "avg_conf_softmax": conf,
