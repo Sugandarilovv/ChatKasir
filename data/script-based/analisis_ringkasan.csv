@@ -1,2 +1,2 @@
 dataset,total_baris,pattern_1,pattern_2,pattern_3_slang,pattern_4_majemuk,baris_tanpa_harga_total,baris_tanpa_harga_non_p4,baris_dengan_harga,qty_format_angka,qty_format_string_ejaan,produk_unik_efektif,total_produk_food_list,produk_belum_ter_generate
-chatkasir_synthetic.csv,100000,31101,31156,17743,20000,33930,13930,66070,40071,39929,1000,18558,17558
+chatkasir_synthetic.csv,100000,31017,31183,17800,20000,33930,13930,66070,40046,39954,1000,18558,17558
