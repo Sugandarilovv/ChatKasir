@@ -31,7 +31,7 @@ const register = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-  const { email, token } = req.body; // Token itu kode OTP 6 digit
+  const { email, token } = req.body;
 
   const { data, error } = await supabaseAuth.auth.verifyOtp({
     email,
@@ -73,7 +73,7 @@ const login = async (req, res) => {
   });
 };
 
-// POST /auth/forgot-password — kirim magic link ke email
+// POST /auth/forgot-password — kirim recovery link ke email
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -81,8 +81,10 @@ const forgotPassword = async (req, res) => {
     return res.status(400).json({ error: "Email wajib diisi" });
   }
 
+  const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, "");
+
   const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.FRONTEND_URL}/lupa-password`,
+    redirectTo: `${frontendUrl}/lupa-password`,
   });
 
   if (error) {
@@ -96,24 +98,24 @@ const forgotPassword = async (req, res) => {
 
 // PUT /auth/update-password
 const updatePassword = async (req, res) => {
-  const { access_token, new_password } = req.body;
+  const { access_token, refresh_token, new_password } = req.body;
 
-  if (!access_token || !new_password) {
+  if (!access_token || !refresh_token || !new_password) {
     return res.status(400).json({
-      error: "Access token dan password baru wajib diisi",
+      error: "Access token, refresh token, dan password baru wajib diisi",
     });
   }
 
-  if (new_password.length < 6) {
+  if (new_password.length < 8) {
     return res.status(400).json({
-      error: "Password minimal 6 karakter",
+      error: "Password minimal 8 karakter",
     });
   }
 
-  // Set session dulu pakai token dari magic link
+  // Set session pakai access_token DAN refresh_token dari recovery link
   const { error: sessionError } = await supabaseAuth.auth.setSession({
     access_token,
-    refresh_token: "",
+    refresh_token,
   });
 
   if (sessionError) {
