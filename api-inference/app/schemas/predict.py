@@ -1,26 +1,22 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional
-
 from pydantic import BaseModel, Field
 
-
-# ── Request ───────────────────────────────────────────────────────────────────
-
+# ── Request Schema ────────────────────────────────────────────────────────────
 class PredictRequest(BaseModel):
-    """Body yang dikirim FS-2 (Reihan) ke POST /predict."""
+    """Body payload yang dikirim oleh backend Express.js ke POST /predict."""
 
     raw_text: str = Field(
         ...,
+        min_length=5,
         description=(
-            "Teks mentah percakapan WhatsApp yang di-copy-paste pengguna. "
-            "Boleh mengandung timestamp format WhatsApp — "
-            "akan dibersihkan otomatis oleh preprocessing. "
-            "Minimal 5 karakter."
+            "Teks mentah obrolan WhatsApp hasil copy-paste kasir. "
+            "Mendukung segala format timestamp lintas OS yang akan dicuci otomatis."
         ),
         examples=[
-            "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\n"
-            "[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya"
+            "[28/05, 05:26] Rifan: order paket ayam bakar madu 10 pack\n"
+            "[28/05, 06:01] Alfan: siap harganya 35k"
         ],
     )
 
@@ -28,94 +24,84 @@ class PredictRequest(BaseModel):
         "json_schema_extra": {
             "example": {
                 "raw_text": (
-                    "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\n"
-                    "[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya"
+                    "[28/05, 05:26] Rifan: order paket ayam bakar madu 10 pack\n"
+                    "[28/05, 06:01] Alfan: siap harganya 35k"
                 )
             }
         }
     }
 
-
-# ── Per-produk result ─────────────────────────────────────────────────────────
-
+# ── Per-Item Result Schema ────────────────────────────────────────────────────
 class OrderItem(BaseModel):
     """
-    Satu baris transaksi — satu produk.
-
-    Edge cases:
-      price_satuan = null  → harga tidak disebutkan di chat
-      product = "unknown"  → NER gagal mengidentifikasi nama produk
-      total = null         → jika price_satuan null, total tidak dapat dihitung
+    Satu baris item transaksi hasil ekstraksi AI setelah post-processing.
     """
 
-    product: str = Field(
+    # 🌟 [SINKRONISASI KEY]: Bermigrasi ke product_name sesuai Notebook 03
+    product_name: str = Field(
         ...,
-        description=(
-            "Nama produk dalam huruf kecil. "
-            "Bernilai 'unknown' jika NER gagal mengidentifikasi produk."
-        ),
+        description="Nama produk/menu kuliner. Bernilai 'unknown' jika gagal diidentifikasi.",
     )
     quantity: int = Field(
         ...,
         ge=1,
-        description="Jumlah pesanan — hasil prediksi model, dibulatkan ke int.",
+        description="Jumlah pesanan murni dalam bentuk integer.",
     )
     price_satuan: Optional[int] = Field(
         None,
         ge=0,
-        description=(
-            "Harga SATUAN dalam rupiah penuh. "
-            "null jika harga tidak disebutkan di chat."
-        ),
+        description="Harga satuan item dalam rupiah. null jika tidak disebutkan.",
     )
-    total: Optional[int] = Field(
+    # 🌟 [SINKRONISASI KEY]: Bermigrasi ke subtotal sesuai Notebook 03
+    subtotal: Optional[int] = Field(
         None,
         ge=0,
-        description=(
-            "Total = quantity × price_satuan, dihitung oleh postprocessing. "
-            "null jika price_satuan null."
-        ),
+        description="Subtotal hasil perkalian quantity x price_satuan.",
     )
     confidence: Literal["HIGH", "MEDIUM", "LOW"] = Field(
         ...,
         description=(
-            "HIGH: total dari chat cocok dengan prediksi model. "
-            "LOW: ada total di chat tapi tidak cocok. "
-            "MEDIUM: tidak ada total di chat untuk diverifikasi."
+            "HIGH: Sinkron dengan nota chat. "
+            "MEDIUM: Tidak ada pembanding harga total di chat. "
+            "LOW: Hasil hitung AI berselisih dengan klaim nota chat penjual."
         ),
     )
 
-
-# ── Response ──────────────────────────────────────────────────────────────────
-
+# ── Response Schema ───────────────────────────────────────────────────────────
 class PredictResponse(BaseModel):
-    """Response POST /predict yang dikirim ke FS-2 (Reihan)."""
+    """Struktur response final yang dikembalikan ke Express.js & Frontend."""
 
+    status: str = "success"
     results: List[OrderItem] = Field(
         ...,
-        description=(
-            "Satu item untuk chat 1 produk; "
-            "lebih dari satu item untuk chat multi-produk."
-        ),
+        description="Daftar item pesanan kuliner yang berhasil diurai model AI.",
+    )
+    # 🌟 [FITUR TAMBAHAN]: Total akumulasi belanja langsung saji untuk kasir toko
+    total_akumulasi: int = Field(
+        ...,
+        ge=0,
+        description="Total nilai nominal keseluruhan belanja pada satu nota chat.",
     )
     clean_text: str = Field(
         ...,
-        description="Teks sudah dibersihkan (tanpa timestamp, sudah normalisasi slang).",
+        description="Teks korpus bersih setelah pembuangan timestamp, noise, dan normalisasi slang.",
     )
 
     model_config = {
         "json_schema_extra": {
             "example": {
+                "status": "success",
                 "results": [
                     {
-                        "product": "nasi goreng",
-                        "quantity": 2,
-                        "price_satuan": 10000,
-                        "total": 20000,
+                        "product_name": "Ayam Bakar Madu",
+                        "quantity": 10,
+                        "price_satuan": 35000,
+                        "subtotal": 350000,
                         "confidence": "HIGH",
                     }
                 ],
-                "clean_text": "bang 2 nasi goreng ya [SEP] oke kak 1 nasi goreng 10rb totalnya 20rb ya",
+                "total_akumulasi": 350000,
+                "clean_text": "pesan paket ayam bakar madu 10 bungkus [SEP] siap harga 35000",
             }
         }
     }

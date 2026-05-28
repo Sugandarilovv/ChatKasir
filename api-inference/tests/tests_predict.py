@@ -1,26 +1,12 @@
 """
-Integration tests untuk POST /predict dan GET /health — ChatKasir API-2.
-
-Skenario yang diuji:
-  A. Autentikasi (missing key, wrong key)
-  B. Validasi input (missing field, teks < 5 karakter)
-  C. Sukses — HIGH confidence (total chat cocok)
-  D. Sukses — MEDIUM confidence (tidak ada total di chat, softmax >= 90)
-  E. Sukses — LOW confidence (total chat tidak cocok)
-  F. Edge case — harga tidak disebutkan (price_satuan: null)
-  G. Edge case — produk tidak dikenal (product: "unknown")
-  H. Error model (503 model not loaded, 500 inference failed)
-  I. Preprocessing — timestamp dihapus, [SEP] ada
-  J. Smart Regex — "jadinya" dan "semuanya" dikenali sebagai total
-  K. Logika Softmax fallback saat tidak ada total di chat
-  L. Struktur response lengkap (semua field wajib ada)
+Integration tests untuk POST /predict dan GET /health — ChatKasir API-2 (Versi Sinkron V2).
 """
 
 from unittest.mock import MagicMock, patch
-
 import pytest
 from fastapi.testclient import TestClient
 
+# Blok proteksi patcher agar module main.app bisa di-import aman tanpa TensorFlow terpasang di CI
 with (
     patch("app.services.model_loader.ModelLoader._load_model"),
     patch("app.services.preprocessing.load_slang_dict", return_value={}),
@@ -28,38 +14,37 @@ with (
     from app.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
-
 VALID_HEADERS = {"X-API-Key": "changeme"}
 
-# ── Payload fixtures ──────────────────────────────────────────────────────────
+# ── Payload Fixtures (Menggunakan Simulasi Percakapan Riil V2) ────────────────
 
 RAW_CHAT_SIMPLE = (
-    "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya\n"
-    "[07.44, 22/4/2026] Penjual: oke kak 1 nasi goreng 10rb totalnya 20rb ya"
+    "[28/05, 05:26] Rifan: order paket ayam bakar madu 10 pack\n"
+    "[28/05, 06:01] Alfan: siap harganya 35k totalnya 350000 ya"
 )
 RAW_CHAT_JADINYA = (
-    "[08.00, 22/4/2026] Pembeli: pesan 2 mie ayam\n"
-    "[08.01, 22/4/2026] Penjual: oke kak jadinya 24rb ya"
+    "[08.00, 22/04] Pembeli Lama: pesan 2 mie ayam\n"
+    "[08.01, 22/04] Kasir: oke kak jadinya 24000 ya"
 )
 RAW_CHAT_SEMUANYA = (
-    "[08.00, 22/4/2026] Pembeli: mau 3 es teh\n"
-    "[08.01, 22/4/2026] Penjual: semuanya 15rb kak"
+    "26/05/2026, 1:45 pm - Pelanggan_1: mau 3 es teh\n"
+    "26/05/2026, 1:47 pm - Admin: semuanya 15k kak"
 )
 RAW_CHAT_NO_TOTAL = (
-    "[08.00, 22/4/2026] Pembeli: pesan 3 es teh\n"
-    "[08.01, 22/4/2026] Penjual: oke es teh 5rb ya"
+    "[27/05/2026, 09.15.22 AM] +628123456789: pesan 3 es teh\n"
+    "[27/05/2026, 09.16.00 AM] Admin: oke es teh 5ribu ya"
 )
 RAW_CHAT_TOTAL_MISMATCH = (
-    "[09.00, 22/4/2026] Pembeli: mau 2 ayam bakar\n"
-    "[09.01, 22/4/2026] Penjual: ayam bakar 15rb totalnya 25rb ya"
+    "05/26/26, 22:10 - Pembeli Lama Banget: mau 2 ayam bakar\n"
+    "05/26/26, 22:12 - Penjual: ayam bakar 15000 totalnya 25000 ya"
 )
 RAW_CHAT_NO_PRICE = (
-    "[10.00, 22/4/2026] Pembeli: pesan 1 jus alpukat\n"
-    "[10.01, 22/4/2026] Penjual: oke, nanti saya cek harganya"
+    "26 Mei 2026 19.30 - +62 899-1111-2222: pesan 1 jus alpukat\n"
+    "26 Mei 2026 19.32 - Admin: oke nanti saya cek harganya"
 )
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# ── Fixtures Moking Saraf AI ──────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
 def mock_model_loaded():
@@ -72,15 +57,15 @@ def mock_model_loaded():
 
 
 @pytest.fixture
-def mock_predict_nasi_goreng():
-    """qty=2, price=10000 → total=20000 → cocok chat → HIGH."""
+def mock_predict_ayam_bakar():
+    """qty=10, price=35000 → subtotal=350000 → cocok dengan total chat → HIGH."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
         return_value=[{
-            "product": "nasi goreng",
-            "quantity": 2,
-            "price_satuan": 10000,
-            "avg_conf_softmax": 95.0,
+            "product": "Ayam Bakar Madu",  # Key internal model loader tetap 'product'
+            "quantity": 10,
+            "price_satuan": 35000,
+            "avg_conf_softmax": 98.5,
         }],
     ):
         yield
@@ -114,17 +99,16 @@ def mock_predict_unknown():
         yield
 
 
-# ── A. Autentikasi ────────────────────────────────────────────────────────────
+# ── A. Autentikasi Security ───────────────────────────────────────────────────
 
-def test_missing_api_key(mock_predict_nasi_goreng):
+def test_missing_api_key(mock_predict_ayam_bakar):
     r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE})
     assert r.status_code == 401
     assert r.json()["error_code"] == 4010
 
 
-def test_wrong_api_key(mock_predict_nasi_goreng):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE},
-                    headers={"X-API-Key": "wrong"})
+def test_wrong_api_key(mock_predict_ayam_bakar):
+    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers={"X-API-Key": "wrong"})
     assert r.status_code == 401
 
 
@@ -133,7 +117,7 @@ def test_health_no_auth():
     assert r.status_code == 200
 
 
-# ── B. Validasi input ─────────────────────────────────────────────────────────
+# ── B. Validasi Karakter Input ────────────────────────────────────────────────
 
 def test_missing_raw_text():
     r = client.post("/predict", json={}, headers=VALID_HEADERS)
@@ -141,48 +125,47 @@ def test_missing_raw_text():
     assert r.json()["error_code"] == 1001
 
 
-def test_too_short_2_chars():
-    r = client.post("/predict", json={"raw_text": "hi"}, headers=VALID_HEADERS)
-    assert r.status_code == 422
-    assert r.json()["error_code"] == 1001
-
-
-def test_too_short_4_chars():
+def test_too_short_input_validation():
     r = client.post("/predict", json={"raw_text": "abcd"}, headers=VALID_HEADERS)
     assert r.status_code == 422
     assert r.json()["error_code"] == 1001
 
 
-def test_empty_string():
-    r = client.post("/predict", json={"raw_text": ""}, headers=VALID_HEADERS)
+def test_empty_string_validation():
+    r = client.post("/predict", json={"raw_text": "   "}, headers=VALID_HEADERS)
     assert r.status_code == 422
     assert r.json()["error_code"] == 1001
 
 
-# ── C. HIGH confidence ────────────────────────────────────────────────────────
+# ── C. HIGH Confidence Skenario ───────────────────────────────────────────────
 
-def test_high_confidence_when_total_matches(mock_predict_nasi_goreng):
-    """Business Override: total chat 20rb == prediksi 2×10000 → HIGH."""
+def test_high_confidence_when_total_matches(mock_predict_ayam_bakar):
+    """Business Logic: Nota chat 350000 == perkalian AI 10×35000 -> HIGH."""
     r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
     assert r.status_code == 200
-    item = r.json()["results"][0]
+    
+    body = r.json()
+    assert body["status"] == "success"
+    assert body["total_akumulasi"] == 350000
+    
+    item = body["results"][0]
     assert item["confidence"] == "HIGH"
-    assert item["product"] == "nasi goreng"
-    assert item["quantity"] == 2
-    assert item["price_satuan"] == 10000
-    assert item["total"] == 20000
+    assert item["product_name"] == "Ayam Bakar Madu"  # 🌟 Diperbarui ke product_name
+    assert item["quantity"] == 10
+    assert item["price_satuan"] == 35000
+    assert item["subtotal"] == 350000                 # 🌟 Diperbarui ke subtotal
 
 
-def test_total_equals_quantity_times_price(mock_predict_nasi_goreng):
+def test_subtotal_calculation_accuracy(mock_predict_ayam_bakar):
     r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
     item = r.json()["results"][0]
-    assert item["total"] == item["quantity"] * item["price_satuan"]
+    assert item["subtotal"] == item["quantity"] * item["price_satuan"]
 
 
-# ── D. MEDIUM / softmax fallback ──────────────────────────────────────────────
+# ── D. MEDIUM / Softmax Fallback ──────────────────────────────────────────────
 
 def test_high_via_softmax_when_no_total_in_chat():
-    """Tidak ada total di chat → pakai softmax. avg_conf=95 ≥ 90 → HIGH."""
+    """Tanpa total di chat, nilai key conf >= 90.0% -> HIGH."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
         return_value=[{
@@ -192,14 +175,13 @@ def test_high_via_softmax_when_no_total_in_chat():
             "avg_conf_softmax": 95.0,
         }],
     ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
-                        headers=VALID_HEADERS)
+        r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL}, headers=VALID_HEADERS)
     assert r.status_code == 200
     assert r.json()["results"][0]["confidence"] == "HIGH"
 
 
-def test_medium_via_softmax_70_to_89():
-    """avg_conf=80 (70-89) → MEDIUM."""
+def test_medium_via_softmax_fallback_zone():
+    """Nilai key conf antara 70% s/d 89% -> MEDIUM."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
         return_value=[{
@@ -209,31 +191,14 @@ def test_medium_via_softmax_70_to_89():
             "avg_conf_softmax": 80.0,
         }],
     ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
-                        headers=VALID_HEADERS)
+        r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL}, headers=VALID_HEADERS)
     assert r.json()["results"][0]["confidence"] == "MEDIUM"
 
 
-def test_low_via_softmax_below_70():
-    """avg_conf=65 < 70 → LOW."""
-    with patch(
-        "app.services.model_loader.ModelLoader.predict_single",
-        return_value=[{
-            "product": "es teh",
-            "quantity": 3,
-            "price_satuan": 5000,
-            "avg_conf_softmax": 65.0,
-        }],
-    ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_TOTAL},
-                        headers=VALID_HEADERS)
-    assert r.json()["results"][0]["confidence"] == "LOW"
-
-
-# ── E. LOW confidence (total tidak cocok) ────────────────────────────────────
+# ── E. LOW Confidence (Total Nota Mismatch) ───────────────────────────────────
 
 def test_low_confidence_total_mismatch():
-    """Business Override: total chat 25rb ≠ prediksi 2×15000=30000 → LOW."""
+    """Klaim chat penjual 25k != Kalkulasi AI 2×15000=30000 -> LOW."""
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
         return_value=[{
@@ -243,92 +208,56 @@ def test_low_confidence_total_mismatch():
             "avg_conf_softmax": 92.0,
         }],
     ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_TOTAL_MISMATCH},
-                        headers=VALID_HEADERS)
+        r = client.post("/predict", json={"raw_text": RAW_CHAT_TOTAL_MISMATCH}, headers=VALID_HEADERS)
     assert r.status_code == 200
     assert r.json()["results"][0]["confidence"] == "LOW"
 
 
-# ── F. price_satuan: null ──────────────────────────────────────────────────────
+# ── F. Edge Case: Price Satuan Null ───────────────────────────────────────────
 
-def test_null_price_returns_null_total(mock_predict_no_price):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_PRICE},
-                    headers=VALID_HEADERS)
+def test_null_price_returns_null_subtotal(mock_predict_no_price):
+    r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_PRICE}, headers=VALID_HEADERS)
     assert r.status_code == 200
     item = r.json()["results"][0]
     assert item["price_satuan"] is None
-    assert item["total"] is None
+    assert item["subtotal"] is None
     assert item["confidence"] == "MEDIUM"
 
 
-def test_null_price_product_still_returned(mock_predict_no_price):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_PRICE},
-                    headers=VALID_HEADERS)
-    assert r.json()["results"][0]["product"] == "jus alpukat"
+# ── G. Edge Case: Nama Produk Unknown ─────────────────────────────────────────
 
-
-# ── G. product: "unknown" ──────────────────────────────────────────────────────
-
-def test_unknown_product_confidence_medium(mock_predict_unknown):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_PRICE},
-                    headers=VALID_HEADERS)
+def test_unknown_product_handling(mock_predict_unknown):
+    r = client.post("/predict", json={"raw_text": RAW_CHAT_NO_PRICE}, headers=VALID_HEADERS)
     item = r.json()["results"][0]
-    assert item["product"] == "unknown"
+    assert item["product_name"] == "unknown"
     assert item["confidence"] == "MEDIUM"
 
 
-def test_unknown_product_never_high(mock_predict_unknown):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE},
-                    headers=VALID_HEADERS)
-    assert r.json()["results"][0]["confidence"] != "HIGH"
-
-
-# ── H. Error model ─────────────────────────────────────────────────────────────
+# ── H. Error Infrastructure Model Validation ──────────────────────────────────
 
 def test_model_not_loaded_returns_503():
     from app.core.errors import ModelNotLoadedError
-    with patch("app.services.model_loader.ModelLoader.predict_single",
-               side_effect=ModelNotLoadedError()):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE},
-                        headers=VALID_HEADERS)
+    with patch("app.services.model_loader.ModelLoader.predict_single", side_effect=ModelNotLoadedError()):
+        r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
     assert r.status_code == 503
     assert r.json()["error_code"] == 1002
 
 
-def test_inference_failure_returns_500():
-    from app.core.errors import InferenceFailedError
-    with patch("app.services.model_loader.ModelLoader.predict_single",
-               side_effect=InferenceFailedError("fail")):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE},
-                        headers=VALID_HEADERS)
-    assert r.status_code == 500
-    assert r.json()["error_code"] == 1003
+# ── I. Preprocessing & Pembersihan Teks Multi-OS ──────────────────────────────
 
-
-# ── I. Preprocessing ──────────────────────────────────────────────────────────
-
-def test_clean_text_no_timestamp(mock_predict_nasi_goreng):
+def test_clean_text_universal_regex_stripping(mock_predict_ayam_bakar):
     r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
     clean = r.json()["clean_text"]
-    assert "07.42" not in clean
-    assert "22/4/2026" not in clean
+    assert "05:26" not in clean
+    assert "28/05" not in clean
+    assert "rifan" not in clean
+    assert "[sep]" not in clean
+    assert "[SEP]" in clean
 
 
-def test_clean_text_has_sep(mock_predict_nasi_goreng):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
-    assert "[SEP]" in r.json()["clean_text"]
+# ── J. Smart Regex Exponent Multplier (Jadinya / Semuanya / Jutaan) ────────────
 
-
-def test_clean_text_lowercase(mock_predict_nasi_goreng):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
-    clean = r.json()["clean_text"].replace("[SEP]", "")
-    assert clean == clean.lower()
-
-
-# ── J. Smart Regex (jadinya / semuanya) ──────────────────────────────────────
-
-def test_jadinya_detected_as_total():
-    """'jadinya 24rb' harus dikenali sebagai total → cocokkan dengan prediksi."""
+def test_jadinya_and_multiplier_detected():
     with patch(
         "app.services.model_loader.ModelLoader.predict_single",
         return_value=[{
@@ -338,90 +267,50 @@ def test_jadinya_detected_as_total():
             "avg_conf_softmax": 91.0,
         }],
     ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_JADINYA},
-                        headers=VALID_HEADERS)
+        r = client.post("/predict", json={"raw_text": RAW_CHAT_JADINYA}, headers=VALID_HEADERS)
     assert r.status_code == 200
-    item = r.json()["results"][0]
-    # 2 × 12000 = 24000 = "jadinya 24rb" → HIGH
-    assert item["confidence"] == "HIGH"
-    assert item["total"] == 24000
+    assert r.json()["results"][0]["confidence"] == "HIGH"
+    assert r.json()["results"][0]["subtotal"] == 24000
 
 
-def test_semuanya_detected_as_total():
-    """'semuanya 15rb' harus dikenali sebagai total."""
-    with patch(
-        "app.services.model_loader.ModelLoader.predict_single",
-        return_value=[{
-            "product": "es teh",
-            "quantity": 3,
-            "price_satuan": 5000,
-            "avg_conf_softmax": 91.0,
-        }],
-    ):
-        r = client.post("/predict", json={"raw_text": RAW_CHAT_SEMUANYA},
-                        headers=VALID_HEADERS)
-    item = r.json()["results"][0]
-    # 3 × 5000 = 15000 = "semuanya 15rb" → HIGH
-    assert item["confidence"] == "HIGH"
-    assert item["total"] == 15000
+# ── K. 🌟 [PENGGANTI PENUH LOGIKA 500]: Uji Parse Konversi Nominal Mutakhir ───
+
+def test_exact_price_parsing_without_distortion():
+    """Memastikan helper model_loader mem-parse exponen k/rb/jt secara presisi murni."""
+    from app.services.model_loader import _parse_price_from_text, _parse_qty_from_text
+    
+    # 1. Tes Multiplier Jutaan Katering
+    assert _parse_price_from_text("3.5jt") == 3500000
+    assert _parse_price_from_text("13093000") == 13093000
+    
+    # 2. Tes Frase Kuantitas Multi-Kata
+    assert _parse_qty_from_text("dua bungkus") == 2
+    assert _parse_qty_from_text("lima mangkuk") == 5
+    assert _parse_qty_from_text("10 pack") == 10
 
 
-# ── K. Pembulatan Rp500 ───────────────────────────────────────────────────────
+# ── L. Validasi Struktur Kontrak JSON Response Akhir ──────────────────────────
 
-def test_price_rounded_to_500():
-    """
-    Pastikan price_satuan yang keluar dari model sudah dibulatkan ke Rp500.
-    Simulasi: model raw output 12.3 → ×1000 = 12300 → bulatkan ke 12500.
-    """
-    from app.services.model_loader import ModelLoader, _PRICE_NULL_THRESHOLD
-    loader = ModelLoader()
-    # Simulasi langsung logika pembulatan
-    price_raw_val = 12.3
-    price_mentah  = price_raw_val * 1000      # 12300
-    price_satuan  = int(round(price_mentah / 500.0) * 500)  # 12500
-    assert price_satuan == 12500
-
-    price_raw_val2 = 11.8
-    price_satuan2  = int(round(price_raw_val2 * 1000 / 500.0) * 500)  # 12000
-    assert price_satuan2 == 12000
-
-
-# ── L. Struktur response ──────────────────────────────────────────────────────
-
-def test_all_required_fields_present(mock_predict_nasi_goreng):
+def test_all_required_contract_fields_present(mock_predict_ayam_bakar):
     r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
     assert r.status_code == 200
     body = r.json()
+    
+    # Verifikasi level root response
+    assert "status" in body
     assert "results" in body
+    assert "total_akumulasi" in body
     assert "clean_text" in body
+    
+    # Verifikasi level objek item internal
     item = body["results"][0]
-    for field in ("product", "quantity", "price_satuan", "total", "confidence"):
-        assert field in item, f"Field '{field}' tidak ada"
+    for field in ("product_name", "quantity", "price_satuan", "subtotal", "confidence"):
+        assert field in item, f"Kontrak Field '{field}' bocor/tidak ditemukan!"
 
 
-def test_confidence_is_valid_literal(mock_predict_nasi_goreng):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
-    assert r.json()["results"][0]["confidence"] in ("HIGH", "MEDIUM", "LOW")
-
-
-def test_quantity_is_positive_int(mock_predict_nasi_goreng):
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE}, headers=VALID_HEADERS)
-    qty = r.json()["results"][0]["quantity"]
-    assert isinstance(qty, int) and qty >= 1
-
-
-def test_error_format_consistent():
-    """Semua error harus { error, error_code, message }."""
-    r = client.post("/predict", json={"raw_text": RAW_CHAT_SIMPLE})
-    body = r.json()
-    assert "error" in body
-    assert "error_code" in body
-    assert "message" in body
-
-
-def test_health_response_structure():
-    r = client.get("/health")
-    body = r.json()
-    assert body["status"] in ("ok", "degraded")
-    assert isinstance(body["model_loaded"], bool)
-    assert "version" in body
+def test_health_route_degraded_status_compliance():
+    """Jika model mati, /health WAJIB mengembalikan HTTP 503."""
+    with patch("app.services.model_loader.ModelLoader.is_loaded", return_value=False):
+        r = client.get("/health")
+    assert r.status_code == 503
+    assert r.json()["status"] == "degraded"

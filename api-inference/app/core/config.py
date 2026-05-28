@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import os
 from typing import List
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -16,6 +15,9 @@ class Settings(BaseSettings):
     APP_NAME:    str  = "AI2 API - ChatKasir"
     APP_VERSION: str  = "2.0"
     DEBUG:       bool = False
+    
+    # Default ke port 7860 untuk Hugging Face Spaces
+    PORT:        int  = int(os.getenv("PORT", 7860))
 
     # ── Security ──────────────────────────────────────────────────────────────
     API_KEY: str = "changeme"
@@ -31,14 +33,14 @@ class Settings(BaseSettings):
     SLANG_DICT_PATH: str = "data/final/slang_utama.csv"
 
     # ── GDrive URLs — sumber download asset ───────────────────────────────────
-    # Ubah nilai ini jika AI-1 (Rifan) upload ulang model ke GDrive yang baru.
     # Format: https://drive.google.com/uc?id=<FILE_ID>
-    GDRIVE_MODEL_URL:     str = "https://drive.google.com/uc?id=1HM0r0g3mwyTcxX-boNJlbpnvDacvUHM8"
-    GDRIVE_TOKENIZER_URL: str = "https://drive.google.com/uc?id=1ahajRHgsOu8WZhT8gNjI3FswS440-ErF"
-    GDRIVE_SLANG_URL:     str = "https://drive.google.com/uc?id=1G14C1qcqOp06Xs1HFiorE3Us_LLtaBs7"
+    GDRIVE_MODEL_URL:     str = "https://drive.google.com/uc?id=1xdVp5x48D-3WXhofRxUmjl6SRYh6EDyz"
+    GDRIVE_TOKENIZER_URL: str = "https://drive.google.com/uc?id=1kkwRYlbHFDGXzVPMiYNx-j1Ktjv0wNHM"
+    
+    # Diselaraskan dengan ID file yang terbukti valid di Notebook 03
+    GDRIVE_SLANG_URL:     str = "https://drive.google.com/uc?id=1vZ769q0ExjO8tUa3kt_O6DPcwBub4uxc"
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     ALLOWED_ORIGINS: List[str] = ["*"]
-
 
 settings = Settings()

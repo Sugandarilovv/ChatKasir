@@ -1,27 +1,3 @@
-"""
-Preprocessing & Postprocessing pipeline — tanggung jawab AI-2 (Denny).
-
-Blok Pertama  : preprocessing (sebelum teks masuk model)
-  - Hapus timestamp WhatsApp dengan regex
-  - Pisahkan pesan pembeli dan penjual
-  - Lowercase seluruh teks
-  - Hapus karakter khusus (tanda baca, emoji, simbol)
-  - Split kalimat (untuk pesan panjang multi-kalimat)
-  - Normalisasi slang menggunakan kamus dari DS-1 (Faradi)
-    · Single-word lookup  : "bg"        → "abang"
-    · Multi-word phrase   : "nasi grg"  → "nasi goreng"
-    · Longest-match-first : "es teh" diprioritaskan atas "es" + "teh" terpisah
-  - Gabungkan dengan separator [SEP]
-
-Blok Kedua    : postprocessing (setelah model menghasilkan output)
-  - Hitung total  = quantity × price_satuan
-  - Tentukan confidence berdasarkan total yang disebutkan di chat
-
-Changelog:
-  Hari 6 (27 Apr): lowercase, remove_special_chars, split_sentences, pipeline dasar
-  Hari 7 (28 Apr): load CSV DS-1, multi-word phrase matching, reload hot-swap, validasi
-"""
-
 from __future__ import annotations
 
 import csv
@@ -35,151 +11,42 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Type alias: dict[slang] = baku
 SlangDict = Dict[str, str]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  BLOK PERTAMA: PREPROCESSING
-# ─────────────────────────────────────────────────────────────────────────────
-
-# ── Load & Reload Kamus Slang ─────────────────────────────────────────────────
+# ── BLOK PERTAMA: PREPROCESSING TINGKAT LANJUT ────────────────────────────────
 
 @lru_cache(maxsize=1)
 def load_slang_dict() -> SlangDict:
-    """
-    Muat kamus slang dari file CSV DS-1 (Faradi) — di-cache setelah pertama load.
-
-    Format CSV yang diharapkan (dengan header):
-        slang,baku
-        bg,abang
-        nasi grg,nasi goreng
-
-    Aturan:
-    - Kolom kurang dari 2   → baris dilewati + warning per baris
-    - Nilai kosong          → baris dilewati + warning per baris
-    - Duplikat key          → entri terakhir menang (warning dicatat)
-    - Semua key & value     → lowercase + strip whitespace
-
-    Mendukung single-word ("bg") DAN multi-word phrase ("nasi grg").
-    Pemisahan untuk normalisasi frasa ditangani oleh normalize_slang().
-
-    Returns
-    -------
-    dict[slang_lowercase] = baku_lowercase
-    Kamus kosong jika file tidak ditemukan atau gagal dibaca.
-    """
+    """Muat kamus slang dari disk lokal."""
     slang_dict: SlangDict = {}
     path = settings.SLANG_DICT_PATH
 
     if not os.path.exists(path):
-        logger.warning(
-            "[Slang] Kamus tidak ditemukan di '%s'. "
-            "Normalisasi slang dinonaktifkan sampai file tersedia.",
-            path,
-        )
+        logger.warning("[Slang] Kamus tidak ditemukan di '%s'.", path)
         return slang_dict
-
-    bad_rows: List[Tuple[int, str]] = []   # (nomor_baris, alasan)
-    duplicates: List[str] = []
 
     try:
         with open(path, encoding="utf-8") as f:
             reader = csv.reader(f)
-            header = next(reader, None)  # skip header row
+            next(reader, None)  # Skip header
 
-            if header is None:
-                logger.warning("[Slang] File CSV '%s' kosong.", path)
-                return slang_dict
-
-            for lineno, row in enumerate(reader, start=2):  # start=2 karena baris 1 = header
-                # Validasi jumlah kolom
-                if len(row) < 2:
-                    bad_rows.append((lineno, f"hanya {len(row)} kolom"))
-                    continue
-
+            for lineno, row in enumerate(reader, start=2):
+                if len(row) < 2: continue
                 slang_raw = row[0].strip().lower()
                 baku_raw  = row[1].strip().lower()
-
-                # Validasi nilai tidak kosong
-                if not slang_raw:
-                    bad_rows.append((lineno, "kolom 'slang' kosong"))
-                    continue
-                if not baku_raw:
-                    bad_rows.append((lineno, "kolom 'baku' kosong"))
-                    continue
-
-                # Deteksi duplikat key
-                if slang_raw in slang_dict:
-                    duplicates.append(
-                        f"'{slang_raw}': '{slang_dict[slang_raw]}' → '{baku_raw}' (baris {lineno})"
-                    )
-
+                if not slang_raw or not baku_raw: continue
                 slang_dict[slang_raw] = baku_raw
-
     except Exception as exc:
         logger.exception("[Slang] Gagal membaca kamus slang: %s", exc)
         return {}
 
-    # ── Ringkasan log setelah load ────────────────────────────────────────
-    single_word = sum(1 for k in slang_dict if " " not in k)
-    multi_word  = len(slang_dict) - single_word
-
-    logger.info(
-        "[Slang] Dimuat dari '%s': %d entri total "
-        "(%d single-word, %d multi-word phrase).",
-        path, len(slang_dict), single_word, multi_word,
-    )
-
-    if bad_rows:
-        logger.warning(
-            "[Slang] %d baris dilewati karena format tidak valid:\n%s",
-            len(bad_rows),
-            "\n".join(f"  baris {n}: {alasan}" for n, alasan in bad_rows),
-        )
-
-    if duplicates:
-        logger.warning(
-            "[Slang] %d duplikat key ditemukan (nilai terakhir dipakai):\n%s",
-            len(duplicates),
-            "\n".join(f"  {d}" for d in duplicates),
-        )
-
     return slang_dict
 
-
 def reload_slang_dict() -> SlangDict:
-    """
-    Paksa reload kamus slang dari disk — berguna untuk hot-swap tanpa restart.
-
-    Cara kerja:
-        Bersihkan cache lru_cache pada load_slang_dict(), lalu panggil ulang.
-        Thread-safe selama tidak ada request aktif saat reload.
-
-    Returns
-    -------
-    Kamus slang yang baru dimuat.
-    """
     load_slang_dict.cache_clear()
-    logger.info("[Slang] Cache dibersihkan — memuat ulang kamus slang...")
     return load_slang_dict()
 
-
 def get_slang_stats() -> dict:
-    """
-    Kembalikan statistik kamus slang yang sedang di-cache.
-    Berguna untuk endpoint /health atau debugging.
-
-    Returns
-    -------
-    {
-        "total": int,
-        "single_word": int,
-        "multi_word": int,
-        "loaded": bool,
-        "path": str,
-    }
-    """
     slang_dict = load_slang_dict()
     single_word = sum(1 for k in slang_dict if " " not in k)
     return {
@@ -190,260 +57,82 @@ def get_slang_stats() -> dict:
         "path":        settings.SLANG_DICT_PATH,
     }
 
-
-# ── Fungsi Dasar Preprocessing ────────────────────────────────────────────────
-
-def lowercase(text: str) -> str:
-    """
-    Ubah seluruh teks menjadi huruf kecil.
-
-    Contoh:
-        "Bang 2 Nasi Goreng YA" -> "bang 2 nasi goreng ya"
-    """
-    return text.lower()
-
-
-def remove_special_chars(text: str) -> str:
-    """
-    Hapus semua karakter yang bukan huruf a-z, angka 0-9, atau spasi.
-    Tanda baca, emoji, simbol mata uang, tanda kurung, dsb. dibuang.
-    Spasi berlebih (hasil penghapusan) dirapikan menjadi satu spasi.
-
-    Contoh:
-        "bang!! 2 nasi-goreng ya"  -> "bang 2 nasigoreng ya"
-        "total: 20.000"            -> "total 20000"
-
-    Catatan:
-        Dipanggil SETELAH lowercase() agar hasil konsisten.
-        Tanda titik dalam "20.000" dihapus → "20000" (benar untuk pattern di postprocess).
-    """
-    cleaned = re.sub(r'[^a-z0-9\s]', '', text)
-    return re.sub(r'\s+', ' ', cleaned).strip()
-
-
-def split_sentences(text: str) -> List[str]:
-    """
-    Pecah teks menjadi list kalimat berdasarkan tanda baca akhir kalimat
-    dan baris baru.
-
-    Contoh:
-        "mau pesan 2 nasi goreng. sama 1 es teh ya"
-        -> ["mau pesan 2 nasi goreng", "sama 1 es teh ya"]
-
-    Catatan:
-        Untuk tokenisasi lanjutan (Hari-8), output list ini bisa di-join
-        kembali atau diproses per kalimat sesuai pipeline AI-1 (Rifan).
-    """
-    parts = re.split(r'[.!?\n]+', text)
-    return [s.strip() for s in parts if s.strip()]
-
-
-# ── Normalisasi Slang — Multi-Word Phrase Support ─────────────────────────────
-
-def _build_phrase_index(slang_dict: SlangDict) -> Dict[int, List[Tuple[List[str], str]]]:
-    """
-    Bangun indeks frasa berdasarkan jumlah kata agar normalize_slang()
-    bisa mencoba longest-match-first secara efisien.
-
-    Returns
-    -------
-    {
-        3: [(['nasi', 'goreng', 'spesial'], 'nasi goreng spesial'), ...],
-        2: [(['nasi', 'grg'], 'nasi goreng'), (['es', 'teh'], 'es teh'), ...],
-    }
-    Hanya entri dengan spasi (multi-word) yang masuk indeks ini.
-    Single-word tetap di-lookup langsung via slang_dict[word].
-    """
-    index: Dict[int, List[Tuple[List[str], str]]] = {}
-    for slang, baku in slang_dict.items():
-        tokens = slang.split()
-        if len(tokens) >= 2:
-            n = len(tokens)
-            if n not in index:
-                index[n] = []
-            index[n].append((tokens, baku))
-    return index
-
-
-def normalize_slang(text: str) -> str:
-    """
-    Normalisasi kata-kata slang, singkatan, dan typo menggunakan kamus DS-1.
-
-    Strategi (Hari 7):
-    1. Bangun indeks frasa dari kamus (multi-word terlebih dahulu).
-    2. Scan token per token dengan sliding-window, coba panjang frasa terpanjang
-       dulu (longest-match-first) sebelum fallback ke single-word lookup.
-    3. Token yang tidak cocok dikembalikan apa adanya (sudah lowercase).
-
-    Input WAJIB sudah melalui lowercase() agar lookup konsisten.
-
-    Contoh:
-        "bg mau pesan nasi grg" -> "abang mau pesan nasi goreng"
-        "esteh" masih dikenali  -> "es teh"  (karena ada di kamus sebagai single token)
-        "es teh" (dua kata)     -> "es teh"  (tetap — sudah bentuk baku)
-    """
-    slang_dict = load_slang_dict()
-    if not slang_dict:
-        return text
-
-    tokens = text.split()
-    if not tokens:
-        return text
-
-    # Bangun indeks frasa multi-kata, urutkan panjang dari besar ke kecil
-    phrase_index = _build_phrase_index(slang_dict)
-    max_phrase_len = max(phrase_index.keys(), default=0)
-
-    result: List[str] = []
-    i = 0
-
-    while i < len(tokens):
-        matched = False
-
-        # Coba longest-match terlebih dahulu
-        for phrase_len in range(min(max_phrase_len, len(tokens) - i), 1, -1):
-            if phrase_len not in phrase_index:
-                continue
-            window = tokens[i : i + phrase_len]
-            window_str = " ".join(window)
-            if window_str in slang_dict:
-                result.append(slang_dict[window_str])
-                i += phrase_len
-                matched = True
-                break
-
-        if not matched:
-            # Fallback: single-word lookup
-            result.append(slang_dict.get(tokens[i], tokens[i]))
-            i += 1
-
-    return " ".join(result)
-
-
-# ── WhatsApp Parser ───────────────────────────────────────────────────────────
-
-def parse_whatsapp_chat(raw_text: str) -> Dict[str, str]:
-    """
-    Membersihkan format timestamp WhatsApp dan memisahkan
-    pesan pembeli dan penjual.
-
-    Pola yang ditangani:
-        "[07.42, 22/4/2026] Pembeli: bang 2 nasi goreng ya"
-        "[07.44, 22/4/2026] Penjual: oke kak 10rb ya"
-
-    Jika ada lebih dari satu pesan per pengirim (chat panjang),
-    semua pesan digabungkan dengan spasi.
-
-    Returns
-    -------
-    dict dengan kunci "pembeli" dan "penjual".
-    """
-    pattern = r'\[([^\]]+)\]\s*(Pembeli|Penjual):\s*'
-    lines = raw_text.strip().split('\n')
-    hasil: Dict[str, str] = {"pembeli": "", "penjual": ""}
-
-    for line in lines:
-        match = re.match(pattern, line)
-        if match:
-            pengirim = match.group(2).lower()
-            isi_pesan = re.sub(pattern, '', line).strip()
-            if hasil[pengirim]:
-                hasil[pengirim] += " " + isi_pesan
-            else:
-                hasil[pengirim] = isi_pesan
-
-    return hasil
-
-
-# ── Pipeline Utama ────────────────────────────────────────────────────────────
-
+# Implementasi Pembersih Universal Regex & Sekat Domain [SEP]
 def prepare_model_input(raw_text: str) -> str:
     """
-    Mengubah raw chat WhatsApp -> string bersih siap masuk model.
-
-    Pipeline lengkap (urutan penting):
-      1. Hapus timestamp & pisahkan per pengirim  (parse_whatsapp_chat)
-      2. Lowercase                                (lowercase)
-      3. Hapus karakter khusus                   (remove_special_chars)
-      4. Normalisasi slang + frasa multi-kata    (normalize_slang)
-      5. Gabungkan dengan separator [SEP]
-
-    Returns
-    -------
-    Teks bersih, contoh:
-        "abang 2 nasi goreng ya [SEP] oke kakak 1 nasi goreng total 20 ribu ya"
-
-    Catatan untuk Hari-8 (tokenisasi):
-        split_sentences() tersedia sebagai utilitas jika pipeline tokenisasi
-        AI-1 membutuhkan input per kalimat, bukan per pengirim.
+    Mengubah raw chat WhatsApp menjadi string bersih siap konsumsi model AI.
+    Mendukung segala ragam timestamp kotor lintas OS handphone.
     """
-    parsed = parse_whatsapp_chat(raw_text)
+    slang_dict = load_slang_dict()
+    if not isinstance(raw_text, str): return ""
+    
+    baris_chat = raw_text.split('\n')
+    baris_bersih = []
 
-    pembeli = parsed["pembeli"]
-    penjual = parsed["penjual"]
+    for baris in baris_chat:
+        if not baris.strip(): continue
+        
+        # 1. Sapu bersih segala pola penanda waktu (dengan/tanpa tahun, pm/am, kurung siku)
+        baris = re.sub(r'^\[?\d{1,2}[/\-\.]\d{1,2}([/\-\.]\d{2,4})?,?\s+\d{1,2}[:\.]\d{2}([:\.]\d{2})?(\s*[aApP][mM])?\]?\s*(-\s*)?', '', baris)
+        baris = re.sub(r'^\[?\d{1,2}\s+[A-Za-z]+(\s+\d{2,4})?,?\s+\d{1,2}[:\.]\d{2}([:\.]\d{2})?(\s*[aApP][mM])?\]?\s*(-\s*)?', '', baris)
+        
+        # 2. Potong nama pengirim chat secara dinamis (fleksibel tanpa hardcode kata Pembeli/Penjual)
+        if ':' in baris:
+            bagian_kiri = baris.split(':', 1)[0]
+            if len(bagian_kiri) < 50: 
+                baris = baris.split(':', 1)[1]
+                
+        baris_bersih.append(baris.strip())
 
-    # Step 2: Lowercase
-    pembeli = lowercase(pembeli)
-    penjual = lowercase(penjual)
+    # 3. Satukan domain percakapan menggunakan token separator utama
+    text = " [SEP] ".join(baris_bersih)
+    text = text.replace("[SEP] [SEP]", "[SEP]").lower()
+    text = text.replace("&", " dan ")
 
-    # Step 3: Hapus karakter khusus
-    pembeli = remove_special_chars(pembeli)
-    penjual = remove_special_chars(penjual)
+    # 4. Reduksi kata sapaan pengisi (Noise reduction)
+    sapaan_pattern = r'\b(bg|abang|bang|mas|kak|mbak|kk|min|teteh|teh|aa|om|tante|bude|pakde|paklik|pak|bapak|bu|ibu|gan|sis|bro|cuy|bos|juragan|admin|halo|halo admin|hallo|pagi|siang|sore|malam|subuh|assalamualaikum|wr|wb|p|ping|ass|dan|dn|budi|deni|andi|ani|siti|dewi|rudi|joko|reza|putri)\b'
+    text = re.sub(sapaan_pattern, ' ', text)
 
-    # Step 4: Normalisasi slang (longest-match-first multi-word + single-word)
-    pembeli = normalize_slang(pembeli)
-    penjual = normalize_slang(penjual)
+    # 5. Normalisasi mata uang dan pelurusan eksponen ribuan/jutaan murni
+    text = re.sub(r'\brp\s*(\d+)', r'\1', text)
+    text = re.sub(r'(?<=\d)\.(?=\d{3}\b)', '', text)
+    text = re.sub(r'\b(\d+)\s*(k|rb|ribu)\b', r'\g<1>000', text)
+    text = re.sub(r'\b(\d+)\s*(jt|juta)\b', r'\g<1>000000', text)
 
-    # Step 5: Gabungkan dengan [SEP]
-    if penjual:
-        return pembeli + " [SEP] " + penjual
+    # 6. Jalankan Sliding Window pemetaan kosakata kamus slang
+    kata_kata = text.split()
+    if slang_dict:
+        kata_kata = [slang_dict.get(kata, kata) for kata in kata_kata]
+    text = " ".join(kata_kata)
 
-    return pembeli
+    # 7. Bersihkan sisa simbol baca pengganggu inferensi sekuensial
+    text = re.sub(r'[^a-z0-9\s\[\]]', ' ', text)
+    text = re.sub(r'(\b\w+)(nya)\b', r'\1', text)
+    text = text.replace("[sep]", "[SEP]")
+    text = re.sub(r'\b(dong|donk|dnk|ya+|ko+k)\b', '', text)
+    
+    return re.sub(r'\s+', ' ', text).strip()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  BLOK KEDUA: POSTPROCESSING
-# ─────────────────────────────────────────────────────────────────────────────
+# ── BLOK KEDUA: POSTPROCESSING TINGKAT LANJUT ────────────────────────────────
 
 def _extract_total_from_chat(teks_bersih: str) -> Optional[int]:
-    """
-    Ekstrak nilai total yang disebutkan oleh penjual di dalam chat.
-
-    Menangani variasi penulisan setelah preprocessing:
-        "total 20rb", "total 20000", "total 25k", "total 20 ribu"
-
-    Catatan:
-        Karena teks_bersih sudah melalui remove_special_chars(),
-        format "20.000" sudah menjadi "20000".
-
-    Returns
-    -------
-    Total dalam rupiah penuh sebagai int, atau None jika tidak ditemukan.
-    """
-    # Tangani variasi: "totalnya", "total", "jadinya", "jadi", "semuanya", "semua"
+    """Ekstrak nilai total klaim nota kasir dari teks biner."""
     match = re.search(
-        r'(?:total|jadi|semua)(?:nya)?\s*(\d+)\s*(rb|ribu|k)?',
+        r'(?:total|jadi|semua|tagihan|bayar)(?:nya)?\s*(\d+)',
         teks_bersih,
         re.IGNORECASE,
     )
-    if not match:
-        return None
-
-    angka  = int(match.group(1))
-    satuan = match.group(2)
-    if satuan and satuan.lower() in ['rb', 'ribu', 'k']:
-        return angka * 1000
-    return angka
+    return int(match.group(1)) if match else None
 
 
+# Mentranslasikan output mentah AI menjadi Key Kontrak Baru
 def postprocess(list_pesanan: List[dict], teks_bersih: str) -> List[dict]:
     """
-    Menghitung subtotal per item dan menentukan confidence flag dari output model.
-    Versi V2: Mendukung pesanan Multi-Item dengan menghitung Grand Total.
+    Menghitung subtotal per item makanan dan menentukan status verifikasi confidence AI.
+    Dilengkapi dengan Fallback Regex jika AI gagal mendeteksi nama produk.
     """
     total_chat = _extract_total_from_chat(teks_bersih)
-
-    # 1. Hitung Grand Total dari semua prediksi model (hanya jika harganya valid)
     grand_total_prediksi = sum(
         (item["quantity"] * item["price_satuan"])
         for item in list_pesanan
@@ -452,66 +141,59 @@ def postprocess(list_pesanan: List[dict], teks_bersih: str) -> List[dict]:
 
     hasil_akhir = []
 
-    # 2. Proses masing-masing item dan berikan status confidence
     for item in list_pesanan:
         quantity = item["quantity"]
         price_satuan = item.get("price_satuan")
-        product = item.get("product", "")
+        product_name = item.get("product_name", "unknown")
         avg_conf = item.get("avg_conf_softmax", 0.0)
 
-        # Hitung Subtotal per item
+        # FITUR FALLBACK PENYELAMAT PRODUK
+        # Jika AI menyerah (unknown), kita tebak namanya dari teks pembeli
+        if product_name == "unknown":
+            qty_str = str(quantity)
+            # Ambil bagian chat pembeli saja (teks sebelum token [SEP])
+            chat_pembeli = teks_bersih.split('[SEP]')[0]
+            
+            # Cari semua teks yang diketik sebelum angka kuantitas
+            # Contoh: "pesan paket ayam bakar madu 10" -> Targetnya "pesan paket ayam bakar madu"
+            match = re.search(rf'(.*?)\s+{qty_str}', chat_pembeli, re.IGNORECASE)
+            
+            if match:
+                tebakan = match.group(1).strip()
+                # Bersihkan kata kerja di awal agar murni nama produk
+                tebakan = re.sub(r'^(pesan|order|mau|beli)\s+', '', tebakan, flags=re.IGNORECASE)
+                
+                if tebakan:
+                    product_name = tebakan.title()  # Ubah jadi "Paket Ayam Bakar Madu"
+
+        # Hitung kalkulasi matematika subtotal murni
         subtotal_item = (quantity * price_satuan) if price_satuan is not None else None
 
-        # Penentuan Confidence
-        if price_satuan is None or product == "unknown":
+        # Penentuan status keandalan verifikasi
+        if price_satuan is None or product_name == "unknown":
             confidence = "MEDIUM"
         elif total_chat is not None:
-            # Bandingkan GRAND TOTAL prediksi dengan TOTAL CHAT
             confidence = "HIGH" if grand_total_prediksi == total_chat else "LOW"
         else:
-            # Tidak ada total di chat → murni pakai Softmax AI
-            if avg_conf >= 90:
-                confidence = "HIGH"
-            elif avg_conf >= 70:
-                confidence = "MEDIUM"
-            else:
-                confidence = "LOW"
+            if avg_conf >= 90.0: confidence = "HIGH"
+            elif avg_conf >= 70.0: confidence = "MEDIUM"
+            else: confidence = "LOW"
 
         hasil_akhir.append({
-            "product":      product,
+            "product_name": product_name,
             "quantity":     quantity,
             "price_satuan": price_satuan,
-            "total":        subtotal_item,
+            "subtotal":     subtotal_item,
             "confidence":   confidence,
         })
 
     return hasil_akhir
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  VALIDASI INPUT
-# ─────────────────────────────────────────────────────────────────────────────
-
-_MIN_INPUT_LENGTH = 5
-
+# ── VALIDASI ──────────────────────────────────────────────────────────────────
 
 def validate_input_length(raw_text: str) -> None:
-    """
-    Validasi panjang teks mentah sebelum preprocessing.
-
-    Aturan:
-      - Teks setelah strip() < 5 karakter → raise InvalidInputError (error_code 1001)
-      - Validasi ini melengkapi Pydantic min_length agar error code konsisten
-        (bukan format Pydantic default 422, melainkan {"error": true, "error_code": 1001, ...})
-
-    Raises
-    ------
-    InvalidInputError jika teks terlalu pendek.
-    """
-    from app.core.errors import InvalidInputError  # local import to avoid circular
-
-    if len(raw_text.strip()) < _MIN_INPUT_LENGTH:
+    if len(raw_text.strip()) < 5:
+        from app.core.errors import InvalidInputError
         raise InvalidInputError(
-            f"Input terlalu pendek ({len(raw_text.strip())} karakter). "
-            f"Minimal {_MIN_INPUT_LENGTH} karakter."
+            f"Input terlalu pendek ({len(raw_text.strip())} karakter). Minimal 5 karakter."
         )

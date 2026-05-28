@@ -2,24 +2,11 @@
 ModelLoader — singleton yang memuat model Keras AI-1 (Rifan) dan
 mengekspos method predict_single untuk satu teks bersih.
 
-Perubahan v2.0 (Tahap 2 — Denny):
+Perubahan v2.0 (Tahap 2 — Denny & Rifan Refactor):
   - Model V2 hanya mengeluarkan 1 Matriks Besar NER Output (bukan 3 output)
-  - Tag diperluas dari 3 menjadi 7: O, B-PROD, I-PROD, B-QTY, I-QTY,
-    B-PRICE, I-PRICE
-  - predict_single sekarang mengembalikan List[dict] (list_pesanan) untuk
-    mendukung multi-item dalam satu chat
-  - Algoritma Grouping/Pairing otomatis mengelompokkan token per produk
-
-Perubahan v1.1:
-  - Custom Layer TransformerEncoder didaftarkan ke custom_objects saat load
-  - Tokenizer diganti ke HuggingFace WordPiece (tokenizers>=0.15.0)
-  - Pembulatan harga ke kelipatan Rp500 terdekat
-  - avg_conf_softmax dihitung dari probabilitas NER token produk
-
-Catatan implementasi:
-  Import tensorflow dan tokenizers dilakukan LAZY (di dalam fungsi _load_model
-  dan predict_single) agar module ini bisa diimport saat unit/integration test
-  tanpa TensorFlow terinstal di environment CI.
+  - Tag diperluas dari 3 menjadi 7: O, B-PROD, I-PROD, B-QTY, I-QTY, B-PRICE, I-PRICE
+  - predict_single mengembalikan List[dict] dengan key "product_name" untuk sinkronisasi API
+  - Ditambahkan fungsi build() pada TransformerEncoder untuk kepatuhan Keras 3
 """
 
 from __future__ import annotations
@@ -60,14 +47,19 @@ def _build_transformer_encoder_class():
         """
         Custom Transformer Encoder Layer — didaftarkan ke custom_objects saat
         load_model karena tidak ada di built-in Keras.
-
-        Arsitektur (sesuai spesifikasi AI-1 Rifan):
-          Embed 128, Multi-Head Attention (4 head), FFN 256, Dropout 0.1
         """
 
         def __init__(self, embed_dim=128, num_heads=4, ff_dim=256, rate=0.1, **kwargs):
             super(TransformerEncoder, self).__init__(**kwargs)
+            
+            # 🌟 Mengunci variabel internal ke self untuk standarisasi get_config
+            self.embed_dim = embed_dim
+            self.num_heads = num_heads
+            self.ff_dim = ff_dim
+            self.rate = rate
             self.supports_masking = True
+
+            # Inisialisasi arsitektur internal sub-layer
             self.att        = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
             self.ffn        = tf.keras.Sequential([
                 Dense(ff_dim, activation="relu"),
@@ -77,6 +69,14 @@ def _build_transformer_encoder_class():
             self.layernorm2 = LayerNormalization(epsilon=1e-6)
             self.dropout1   = Dropout(rate)
             self.dropout2   = Dropout(rate)
+
+        # 🌟 [FIX KUNCI SINKRONISASI]: Wajib diimplementasikan agar Keras 3 bebas dari UserWarning
+        def build(self, input_shape):
+            self.att.build(input_shape, input_shape)
+            self.ffn.build(input_shape)
+            self.layernorm1.build(input_shape)
+            self.layernorm2.build(input_shape)
+            super(TransformerEncoder, self).build(input_shape)
 
         def call(self, inputs, training=False, mask=None):
             padding_mask = (
@@ -93,56 +93,68 @@ def _build_transformer_encoder_class():
         def get_config(self):
             config = super().get_config()
             config.update({
-                "embed_dim": self.att.key_dim,
-                "num_heads": self.att.num_heads,
-                "ff_dim":    self.ffn.layers[0].units,
-                "rate":      self.dropout1.rate,
+                "embed_dim": self.embed_dim,
+                "num_heads": self.num_heads,
+                "ff_dim":    self.ff_dim,
+                "rate":      self.rate,
             })
             return config
 
     return TransformerEncoder
 
 
-# ── Helper: Parse Harga dari Teks Token ──────────────────────────────────────
+# ── Helper: Parse Harga & Kuantitas dari Teks Token (Versi Robust V2) ─────────
 
 def _parse_price_from_text(text: str) -> Optional[int]:
     """
     Parse nilai harga dari teks hasil decode token B-PRICE/I-PRICE.
-
-    Menangani variasi:
-        "10rb" -> 10000, "25000" -> 25000, "15k" -> 15000, "5 ribu" -> 5000
-
-    Returns
-    -------
-    Harga dalam rupiah penuh (dibulatkan ke Rp500 terdekat), atau None
-    jika tidak dapat di-parse atau nilainya 0.
+    Mendukung konversi otomatis satuan ribuan (k/rb) hingga jutaan (jt/juta).
     """
-    match = re.search(r'(\d+)\s*(rb|ribu|k)?', text.strip(), re.IGNORECASE)
-    if not match:
-        return None
-    angka  = int(match.group(1))
-    satuan = match.group(2)
-    if satuan and satuan.lower() in ('rb', 'ribu', 'k'):
-        angka *= 1000
-    if angka <= 0:
-        return None
-    # Bulatkan ke kelipatan Rp500 terdekat
-    return max(0, int(round(angka / 500.0) * 500))
+    # Bersihkan tanda baca titik/koma pemisah ribuan agar tersisa karakter murni
+    teks = text.lower().replace('.', '').replace(',', '').strip()
+    
+    # Mendukung multiplier nominal jutaan untuk paket katering besar
+    if 'jt' in teks or 'juta' in teks:
+        angka = re.sub(r'[^0-9]', '', teks)
+        return int(angka) * 1000000 if angka else None
+        
+    if 'rb' in teks or 'ribu' in teks or 'k' in teks:
+        angka = re.sub(r'[^0-9]', '', teks)
+        return int(angka) * 1000 if angka else None
+        
+    # Ambil nilai angka murni (tanpa distorsi pembulatan paksa kelipatan 500)
+    angka = re.sub(r'[^0-9]', '', teks)
+    return int(angka) if angka and int(angka) > 0 else None
 
 
 def _parse_qty_from_text(text: str) -> int:
-    """Parse nilai kuantitas dari teks, mendukung angka dan ejaan huruf."""
-    kamus_huruf = {
-        "satu": 1, "sebiji": 1, "seporsi": 1, "sebungkus": 1, "segelas": 1, "sebotol": 1,
-        "dua": 2, "loro": 2, "tiga": 3, "telu": 3, "empat": 4, "papat": 4, "lima": 5, "limo": 5,
-        "setengah": 1
+    """
+    Parse nilai kuantitas dari teks, mendukung penulisan angka murni,
+    kombinasi ejaan teks pelengkap, hingga frase multi-kata (e.g., 'dua bungkus').
+    """
+    # Sinkronisasi komprehensif kosakata kuantitas dari Notebook 03
+    kamus_kuantitas = {
+        "satu": 1, "sebiji": 1, "seporsi": 1, "sebungkus": 1,
+        "segelas": 1, "semangkok": 1, "sepiring": 1, "sebotol": 1,
+        "secangkir": 1, "setusuk": 1, "sepotong": 1, "siji": 1, "sebox": 1, "sekotak": 1,
+        "secup": 1, "satu cup": 1, "se-pack": 1, "semika": 1, "se-thinwall": 1, "sepaket": 1,
+        "porsi gede": 1, "porsi jumbo": 1, "porsi kecil": 1, "setengah porsi": 1, "setengah": 1,
+        "dua": 2, "loro": 2, "dua bungkus": 2, "dua porsi": 2, "dua mangkuk": 2, "dua pack": 2, "dua box": 2, "dua mika": 2, "dua thinwall": 2, "dua gelas": 2, "dua botol": 2, "dua cup": 2, "dua plastik": 2,
+        "tiga": 3, "telu": 3, "tiga bungkus": 3, "tiga porsi": 3, "tiga piring": 3, "tiga gelas": 3, "tiga botol": 3, "tiga cup": 3,
+        "empat": 4, "mpat": 4, "pat": 4, "papat": 4,
+        "lima": 5, "limo": 5, "lima mangkuk": 5, "lima porsi": 5, "lima pack": 5, "lima box": 5, "lima cup": 5,
+        "enam": 6, "enem": 6, "nam": 6, "tujuh": 7, "pitu": 7, "delapan": 8, "lapan": 8, "wolu": 8,
+        "sembilan": 9, "sanga": 9, "songo": 9, "sepuluh": 10, "sepulu": 10,
+        "sebelas": 11, "seblas": 11, "dua belas": 12, "selusin": 12
     }
-    teks_bersih = text.lower().strip()
-    if teks_bersih in kamus_huruf:
-        return kamus_huruf[teks_bersih]
-
-    match = re.search(r'\d+', teks_bersih)
-    return max(1, int(match.group())) if match else 1
+    
+    teks = text.lower().strip()
+    if teks in kamus_kuantitas:
+        return kamus_kuantitas[teks]
+        
+    # Fallback: Cari komponen digit jika pembeli menulis angka murni biasa (e.g., "10 pack" -> 10)
+    angka = re.sub(r'[^0-9]', '', teks)
+    return int(angka) if angka else 1
 
 
 # ── ModelLoader ───────────────────────────────────────────────────────────────
@@ -150,13 +162,10 @@ def _parse_qty_from_text(text: str) -> int:
 class ModelLoader:
     """
     Singleton yang memuat model Keras dan tokenizer satu kali saat startup.
-    Dipakai via ModelLoader.get_instance().predict_single(teks_bersih).
     """
 
     _model:     Optional[Any] = None
     _tokenizer: Optional[Any] = None
-
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     @classmethod
     def get_instance(cls) -> "ModelLoader":
@@ -170,23 +179,18 @@ class ModelLoader:
 
     @classmethod
     def reset(cls) -> None:
-        """Lepas model dari memory (untuk testing atau graceful shutdown)."""
         cls._model     = None
         cls._tokenizer = None
-
-    # ── Internal load ─────────────────────────────────────────────────────────
 
     @classmethod
     def _load_model(cls) -> None:
         try:
             import os
-
             import tensorflow as tf
             from tokenizers import Tokenizer
 
             TransformerEncoder = _build_transformer_encoder_class()
 
-            # ── Model Keras ───────────────────────────────────────────────────
             logger.info("Memuat model dari %s ...", settings.MODEL_PATH)
             cls._model = tf.keras.models.load_model(
                 settings.MODEL_PATH,
@@ -195,47 +199,24 @@ class ModelLoader:
             )
             logger.info("Model berhasil dimuat.")
 
-            # ── HuggingFace WordPiece Tokenizer ───────────────────────────────
             if os.path.exists(settings.TOKENIZER_PATH):
                 cls._tokenizer = Tokenizer.from_file(settings.TOKENIZER_PATH)
                 logger.info("Tokenizer dimuat dari %s.", settings.TOKENIZER_PATH)
             else:
-                logger.warning(
-                    "Tokenizer tidak ditemukan di '%s'.", settings.TOKENIZER_PATH
-                )
+                logger.warning("Tokenizer tidak ditemukan di '%s'.", settings.TOKENIZER_PATH)
 
         except FileNotFoundError:
-            logger.warning(
-                "Model tidak ditemukan di '%s'.", settings.MODEL_PATH
-            )
+            logger.warning("Model tidak ditemukan di '%s'.", settings.MODEL_PATH)
         except Exception as exc:
             logger.exception("Error saat memuat model: %s", exc)
             raise ModelNotLoadedError(str(exc)) from exc
 
-    # ── Inference ─────────────────────────────────────────────────────────────
-
     def predict_single(self, teks_bersih: str) -> List[dict]:
         """
         Jalankan inferensi untuk satu teks bersih.
-
-        Model V2 mengeluarkan 1 Matriks NER besar (shape: (1, seq_len, 7)).
-        Menggunakan teknik Independent Extraction 3-Fase: panen entitas ke list
-        terpisah, lalu mapping berdasarkan indeks.
-
-        Returns
-        -------
-        List[dict]: list_pesanan, setiap elemen berisi:
-            {
-              "product":          str,        # nama produk atau "unknown"
-              "quantity":         int,        # minimal 1
-              "price_satuan":     int | None, # None jika harga tidak disebutkan
-              "avg_conf_softmax": float,      # rata-rata confidence NER (0-100)
-            }
         """
-        if self._model is None:
-            raise ModelNotLoadedError()
-        if self._tokenizer is None:
-            raise ModelNotLoadedError("Tokenizer belum dimuat.")
+        if self._model is None or self._tokenizer is None:
+            raise ModelNotLoadedError("Model atau Tokenizer belum dimuat sempurna.")
 
         try:
             import numpy as np
@@ -249,14 +230,13 @@ class ModelLoader:
                 ids = ids + [0] * (settings.MAX_SEQUENCE_LEN - len(ids))
             padded = np.array([ids])
 
-            # Inferensi Model
+            # Inferensi Jaringan Saraf Model AI
             ner_probs = self._model.predict(padded, verbose=0)
             tag_ids = np.argmax(ner_probs[0], axis=-1)
             probs = np.max(ner_probs[0], axis=-1)
 
-            # FASE 1 & 2: Ekstraksi Independen ke List Terpisah
             list_produk, list_qty, list_harga = [], [], []
-            list_conf = []  # Menyimpan confidence rata-rata per produk
+            list_conf = []
 
             temp_ids, temp_confs = [], []
             current_tag = None
@@ -308,44 +288,43 @@ class ModelLoader:
                         temp_confs = [float(probs[i])]
                         current_tag = expected_current
 
-            # Flush sisa buffer di akhir kalimat
             if current_tag and temp_ids:
                 _simpan_buffer(temp_ids, temp_confs, current_tag)
 
             # FASE 3: Relational Asosiasi (Mapping Berdasarkan Indeks)
             list_pesanan: List[dict] = []
 
-            # Jika user tidak memasukkan produk sama sekali
-            if not list_produk:
+            # 1. Bersihkan produk kosong (mencegah error jika AI menangkap spasi/tanda baca)
+            list_produk_bersih = [p for p in list_produk if p.strip()]
+            list_conf_bersih = [c for p, c in zip(list_produk, list_conf) if p.strip()]
+
+            # 2. Cari jumlah item terbanyak (Agar QTY dan Harga tidak hilang)
+            max_items = max(len(list_produk_bersih), len(list_qty), len(list_harga))
+
+            if max_items == 0:
                 return [{
-                    "product": _UNKNOWN_PRODUCT,
+                    "product_name": _UNKNOWN_PRODUCT,
                     "quantity": 1,
                     "price_satuan": None,
                     "avg_conf_softmax": 0.0,
                 }]
 
-            for i in range(len(list_produk)):
-                # Mapping QTY & PRICE ke produk berdasarkan index.
-                # Total harga akhir dari penjual misal "55rb" otomatis tersaring
-                # karena elemen list_harga ke-3 tidak punya pasangan di list_produk.
+            # 3. Pasangkan data secara aman
+            for i in range(max_items):
+                prod = list_produk_bersih[i] if i < len(list_produk_bersih) else _UNKNOWN_PRODUCT
                 qty = list_qty[i] if i < len(list_qty) else 1
                 price = list_harga[i] if i < len(list_harga) else None
-                conf = list_conf[i]
+                conf = list_conf_bersih[i] if i < len(list_conf_bersih) else 0.0
 
                 list_pesanan.append({
-                    "product": list_produk[i] if list_produk[i] else _UNKNOWN_PRODUCT,
+                    "product_name": prod if prod else _UNKNOWN_PRODUCT,
                     "quantity": qty,
                     "price_satuan": price,
                     "avg_conf_softmax": conf,
                 })
 
-            logger.debug(
-                "[predict_single] %d item terdeteksi: %s",
-                len(list_pesanan),
-                [p["product"] for p in list_pesanan],
-            )
             return list_pesanan
-
+        
         except Exception as exc:
             logger.exception("Inference error: %s", exc)
             raise InferenceFailedError(str(exc)) from exc
