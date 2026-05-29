@@ -73,7 +73,7 @@ const login = async (req, res) => {
   });
 };
 
-// POST /auth/forgot-password — kirim recovery link ke email
+// POST /auth/forgot-password
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -112,7 +112,6 @@ const updatePassword = async (req, res) => {
     });
   }
 
-  // Set session pakai access_token DAN refresh_token dari recovery link
   const { error: sessionError } = await supabaseAuth.auth.setSession({
     access_token,
     refresh_token,

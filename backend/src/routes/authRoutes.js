@@ -9,7 +9,6 @@ const {
   updatePassword,
 } = require("../controllers/authController");
 
-// Validasi untuk Register
 const registerValidation = [
   body("email").isEmail().withMessage("Format email tidak valid"),
   body("password")
