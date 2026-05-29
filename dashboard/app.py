@@ -18,13 +18,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Konstanta warna brand
+# Konstanta warna brand (Tema Hijau UI/UX)
 C = {
-    "biru"  : "#2E86AB",
-    "merah" : "#E84855",
-    "hijau" : "#3BB273",
-    "kuning": "#F7B731",
-    "abu"   : "#95A5A6",
+    "hijau_utama"  : "#2D6A4F",
+    "hijau_gelap"  : "#1B4332",
+    "hijau_sedang" : "#40916C",
+    "hijau_muda"   : "#74C69D",
+    "hijau_terang" : "#B7E4C7",
+    "abu"          : "#95A5A6",
 }
 
 HARGA_MIN_VALID = 5_000
@@ -166,7 +167,7 @@ def terapkan_filter(harga_min, harga_max, pola_tuple, segmen_tuple):
 
 with st.sidebar:
     st.markdown(
-        "<h2 style='color:#2E86AB; margin-bottom:0'>🧾 ChatKasir</h2>"
+        "<h2 style='color:#2D6A4F; margin-bottom:0'>🧾 ChatKasir</h2>"
         "<p style='color:#666; font-size:12px; margin-top:4px'>"
         "Analytics Dashboard . CC26-PSU065</p>",
         unsafe_allow_html=True,
@@ -331,15 +332,15 @@ elif halaman == "📊 Analisis Bisnis":
             st.markdown("### 📌 PB-1: Top 20 Produk Terlaris")
             top_produk = df_filtered["product"].value_counts().head(20).reset_index()
             top_produk.columns = ["Produk", "Jumlah Pesanan"]
-            fig1 = px.bar(top_produk, x="Jumlah Pesanan", y="Produk", orientation="h", color_discrete_sequence=[C["biru"]])
+            fig1 = px.bar(top_produk, x="Jumlah Pesanan", y="Produk", orientation="h", color_discrete_sequence=[C["hijau_utama"]])
             fig1.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(l=0, r=0, t=10, b=0), height=380)
             st.plotly_chart(fig1, use_container_width=True)
-            st.info("💡 **Explanatory Insight:** Evaluasi terhadap data transaksional membuktikan adanya penumpukan volume pesanan pada variasi menu tertentu. Konsentrasi pesanan yang timpang ini menegaskan urgensi alokasi stok bahan baku secara asimetris, fokus penuh pada dua puluh menu utama penentu omzet usaha.")
+            st.info("💡 **Explanatory Insight:** Evaluasi terhadap data transaksional membuktikan adanya penumpukan volume pesanan pada variasi menu tertentu. Konsentrasi pesanan yang tidak seimbang ini menegaskan urgensi alokasi stok bahan baku secara asimetris, fokus penuh pada dua puluh menu utama penentu omzet usaha.")
 
         with col_row1_right:
             st.markdown("### 📌 PB-2: Sebaran Harga Satuan")
             if not df_hv.empty:
-                fig2 = px.histogram(df_hv, x="price_satuan", nbins=30, color_discrete_sequence=[C["merah"]])
+                fig2 = px.histogram(df_hv, x="price_satuan", nbins=30, color_discrete_sequence=[C["hijau_sedang"]])
                 fig2.update_layout(margin=dict(l=0, r=0, t=10, b=0), xaxis_title="Harga Satuan (Rp)", yaxis_title="Frekuensi", height=380)
                 st.plotly_chart(fig2, use_container_width=True)
                 st.info("💡 **Explanatory Insight:** Pemetaan dari 43.227 baris data harga valid memperlihatkan konsentrasi kurva frekuensi yang menumpuk padat di bawah batas 50.000 rupiah. Angka median ini memberikan jangkar kalkulasi riil bagi manajemen dalam menentukan batas atas modal operasional harian.")
@@ -356,7 +357,11 @@ elif halaman == "📊 Analisis Bisnis":
             segmen_counts["sort_idx"] = segmen_counts["Segmen Harga"].apply(lambda x: URUTAN_SEGMEN.index(x) if x in URUTAN_SEGMEN else 99)
             segmen_counts = segmen_counts.sort_values("sort_idx")
             fig3 = px.bar(segmen_counts, x="Segmen Harga", y="Jumlah", color="Segmen Harga", color_discrete_map={
-                "Murah (< 20rb)": C["hijau"], "Sedang (20rb-50rb)": C["kuning"], "Agak Mahal (50rb-100rb)": C["biru"], "Mahal (>= 100rb)": C["merah"], "Tidak Disebutkan / Outlier": C["abu"]
+                "Murah (< 20rb)": C["hijau_terang"], 
+                "Sedang (20rb-50rb)": C["hijau_muda"], 
+                "Agak Mahal (50rb-100rb)": C["hijau_sedang"], 
+                "Mahal (>= 100rb)": C["hijau_gelap"], 
+                "Tidak Disebutkan / Outlier": C["abu"]
             })
             fig3.update_layout(margin=dict(l=0, r=0, t=10, b=0), showlegend=False, height=380)
             st.plotly_chart(fig3, use_container_width=True)
@@ -367,10 +372,10 @@ elif halaman == "📊 Analisis Bisnis":
             eksplisit_counts = df_filtered["harga_eksplisit"].value_counts().reset_index()
             eksplisit_counts.columns = ["Tipe", "Jumlah"]
             eksplisit_counts["Tipe"] = eksplisit_counts["Tipe"].map({True: "Harga Disebutkan", False: "Harga Tidak Disebutkan"})
-            fig4 = px.pie(eksplisit_counts, names="Tipe", values="Jumlah", color="Tipe", color_discrete_map={"Harga Disebutkan": C["biru"], "Harga Tidak Disebutkan": C["abu"]}, hole=0.4)
+            fig4 = px.pie(eksplisit_counts, names="Tipe", values="Jumlah", color="Tipe", color_discrete_map={"Harga Disebutkan": C["hijau_utama"], "Harga Tidak Disebutkan": C["abu"]}, hole=0.4)
             fig4.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=380)
             st.plotly_chart(fig4, use_container_width=True)
-            st.info("💡 **Explanatory Insight:** Rekam log membuktikan sebanyak 56 persen pesan masuk mengabaikan pencantuman harga barang. Temuan ini menegaskan bahwa model kecerdasan buatan wajib mengintegrasikan modul pencarian silang otomatis ke database menu internal, menolak ketergantungan penuh pada teks kasir.")
+            st.info("💡 **Explanatory Insight:** Rekam log membuktikan sebagian besar pesan masuk mengabaikan pencantuman harga barang secara jelas. Temuan ini menegaskan bahwa model kecerdasan buatan wajib mengintegrasikan modul pencarian silang otomatis ke database menu internal, menolak ketergantungan penuh pada teks kasir.")
 
         st.markdown("---")
         col_row3_left, col_row3_right = st.columns(2, gap="medium")
@@ -379,7 +384,7 @@ elif halaman == "📊 Analisis Bisnis":
             st.markdown("### 📌 PB-5: Top 20 Kata Slang Paling Aktif")
             counter_slang, _ = hitung_slang_aktif()
             top_slang = pd.DataFrame(counter_slang.most_common(20), columns=["Slang", "Frekuensi"])
-            fig5 = px.bar(top_slang, x="Frekuensi", y="Slang", orientation="h", color_discrete_sequence=[C["kuning"]])
+            fig5 = px.bar(top_slang, x="Frekuensi", y="Slang", orientation="h", color_discrete_sequence=[C["hijau_muda"]])
             fig5.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(l=0, r=0, t=10, b=0), height=380)
             st.plotly_chart(fig5, use_container_width=True)
             st.info("💡 **Explanatory Insight:** Singkatan dan istilah informal menduduki peringkat teratas dalam pola ketikan kasir sehari-hari. Integrasi pasokan data dari 1.231 entri slang utama terbukti mampu memotong risiko kegagalan pemrosesan bahasa alami di terminal kasir digital.")
@@ -389,7 +394,7 @@ elif halaman == "📊 Analisis Bisnis":
             qty_counts = df_filtered["qty_numerik"].value_counts().reset_index()
             qty_counts.columns = ["Tipe Kuantitas", "Jumlah"]
             qty_counts["Tipe Kuantitas"] = qty_counts["Tipe Kuantitas"].map({True: "Numerik (Angka)", False: "Non-Numerik (Teks)"})
-            fig6 = px.bar(qty_counts, x="Tipe Kuantitas", y="Jumlah", color="Tipe Kuantitas", color_discrete_map={"Numerik (Angka)": C["hijau"], "Non-Numerik (Teks)": C["merah"]})
+            fig6 = px.bar(qty_counts, x="Tipe Kuantitas", y="Jumlah", color="Tipe Kuantitas", color_discrete_map={"Numerik (Angka)": C["hijau_gelap"], "Non-Numerik (Teks)": C["hijau_sedang"]})
             fig6.update_layout(margin=dict(l=0, r=0, t=10, b=0), showlegend=False, height=380)
             st.plotly_chart(fig6, use_container_width=True)
             st.info("💡 **Explanatory Insight:** Penulisan kuantitas pesanan menggunakan format alfabet non-numerik masih konsisten muncul di dalam sistem. Pembangunan komponen penerjemah kata sebelum data menyentuh model inti menjadi langkah pengamanan wajib guna menghindari kegagalan kalkulasi final.")
@@ -399,10 +404,10 @@ elif halaman == "📊 Analisis Bisnis":
         df_food = muat_makanan()
         kat_counts = df_food["kategori"].value_counts().reset_index()
         kat_counts.columns = ["Kategori", "Jumlah Produk"]
-        fig7 = px.bar(kat_counts, x="Jumlah Produk", y="Kategori", orientation="h", color_discrete_sequence=[C["biru"]])
+        fig7 = px.bar(kat_counts, x="Jumlah Produk", y="Kategori", orientation="h", color_discrete_sequence=[C["hijau_utama"]])
         fig7.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(l=0, r=0, t=10, b=0), height=380)
         st.plotly_chart(fig7, use_container_width=True)
-        st.info("💡 **Explanatory Insight:** Inventarisasi 18.558 manifes makanan memperlihatkan penumpukan variasi produk pada segmen masakan tertentu. Ketidakseimbangan representasi data ini memicu risiko bias pengenalan teks, sehingga penambahan sampel kalimat baru untuk kelompok kategori minoritas mutlak dilakukan.")
+        st.info("💡 **Explanatory Insight:** Inventarisasi 18.558 manifes makanan memperlihatkan penumpukan variasi produk pada segmen masakan tertentu. Ketidakseimbangan representasi data ini memicu risiko bias pengenalan teks, sehingga penambahan sampel kalimat baru untuk kelompok kategori minoritas dilakukan.")
 
     else:
         st.warning("Tidak ada data yang cocok dengan filter saat ini.")
@@ -421,30 +426,59 @@ elif halaman == "💬 Simulasi ChatKasir":
 
     with col_input:
         st.subheader("✍️ Teks Obrolan Pelanggan")
-        teks_contoh = "kak pesen 2 nasi goreng spesial sama 1 es teh manis ya, bisa minta totalnya berapa?"
+        teks_contoh = """[29/5, 07.14] +62 811-2222-3333: order paket ayam bakar madu 10 pack
+[29/5, 07.21] Warung Sejahtera: siap harganya 35k"""
         teks_input = st.text_area(label="Ketik teks obrolan di sini:", value=teks_contoh, height=200, label_visibility="collapsed")
         tombol = st.button("🚀 Proses & Ekstrak Entitas", type="primary", use_container_width=True)
 
     with col_output:
-        st.subheader("📤 Hasil Ekstraksi Model")
+        st.subheader("📤 Hasil Ekstraksi Model AI")
 
         if not tombol:
-            st.markdown("<div style='background:#f0f4f8; border-radius:10px; padding:50px 30px; text-align:center; color:#888; min-height:200px;'>⬅️ Tekan Tombol Proses</div>", unsafe_allow_html=True)
+            st.markdown("<div style='background:#E9F5EC; border-radius:10px; padding:50px 30px; text-align:center; color:#2D6A4F; min-height:200px; border: 1px dashed #74C69D;'>⬅️ Tekan Tombol Proses</div>", unsafe_allow_html=True)
         else:
-            with st.spinner("⚙️ Menormalisasi slang..."):
-                import time, json
-                time.sleep(1.0)
-                df_slang_sim = muat_slang()
-                kamus         = dict(zip(df_slang_sim["slang"], df_slang_sim["formal"]))
-                teks_norm = " ".join(kamus.get(w, w) for w in teks_input.lower().split())
-                hasil = {
-                    "status"              : "sukses",
-                    "teks_asli"           : teks_input.strip(),
-                    "teks_ternormalisasi" : teks_norm.strip(),
-                    "entitas_terekstrak"  : [{"produk" : "- (model belum terhubung)", "jumlah" : "-", "harga"  : "-"}],
+            with st.spinner("⚙️ Menghubungi Otak AI di Hugging Face Spaces..."):
+                import requests
+                import json
+                
+                # Konfigurasi Endpoint API menembak langsung ke Hugging Face Space
+                API_URL = "https://achmadrifan-chatkasir.hf.space/predict" 
+                
+                # Menggunakan label raw_text sesuai spesifikasi payload pada API
+                payload = {"raw_text": teks_input}
+                
+                # Menambahkan kunci akses autentikasi yang diminta oleh server
+                headers = {
+                    "X-API-Key": "changeme",
+                    "Content-Type": "application/json"
                 }
-
-            st.success("✅ Normalisasi selesai!")
-            st.code(json.dumps(hasil, ensure_ascii=False, indent=2), language="json")
-            st.markdown("**📋 Ringkasan Pesanan:**")
-            st.dataframe(pd.DataFrame(hasil["entitas_terekstrak"]), use_container_width=True)
+                
+                try:
+                    # Menyisipkan parameter headers ke dalam request
+                    response = requests.post(API_URL, json=payload, headers=headers)
+                    
+                    if response.status_code == 200:
+                        hasil = response.json()
+                        st.success("✅ Ekstraksi Berhasil!")
+                        st.code(json.dumps(hasil, ensure_ascii=False, indent=2), language="json")
+                        
+                        st.markdown("**📋 Ringkasan Pesanan:**")
+                        st.dataframe(pd.DataFrame(hasil), use_container_width=True)
+                        
+                    elif response.status_code == 422:
+                        st.error("❌ Validasi Gagal: Format payload tidak sesuai dengan skema API (Unprocessable Entity).")
+                        st.json(response.json())
+                    elif response.status_code == 400:
+                        st.error("❌ Validasi Gagal: Teks terlalu pendek (Minimal 5 karakter).")
+                    elif response.status_code == 401:
+                        st.error("❌ Autentikasi Gagal: API Key salah atau ditolak oleh server.")
+                    elif response.status_code == 503:
+                        st.error("❌ API Degraded: Model AI di Hugging Face sedang dimuat. Coba lagi dalam 15 detik.")
+                    else:
+                        st.error(f"❌ Gagal memproses. Kode Error: {response.status_code}")
+                        st.json(response.json())
+                        
+                except requests.exceptions.ConnectionError:
+                    st.error("❌ Gagal terhubung ke URL Hugging Face. Pastikan koneksi internet Anda aktif dan Space dalam keadaan 'Running'.")
+                except Exception as e:
+                    st.error(f"❌ Terjadi kesalahan sistem: {e}")
