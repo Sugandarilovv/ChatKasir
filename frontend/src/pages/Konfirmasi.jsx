@@ -22,16 +22,15 @@ export default function Konfirmasi() {
     if (!raw) { navigate('/input'); return }
     try {
       const parsed = JSON.parse(raw)
-      // Backend: { extraction_id, predictions: [{product_name, quantity, price_satuan, total, confidence}] }
-      const predictions = parsed.predictions || []
+      const predictions = parsed.predictions || parsed.results || []
       setExtractionId(parsed.extraction_id || null)
       setItems(predictions.map((item, i) => ({
         id:           i,
         nama_produk:  item.product_name  || '',
         jumlah:       item.quantity      ?? 1,
         harga:        item.price_satuan  ?? 0,
-        total:        item.total         ?? 0,
-        confidence:   item.confidence    || 'HIGH',
+        total:        item.total || item.subtotal || 0,
+        confidence:   (item.confidence || 'HIGH').toUpperCase(),
         is_manual:    false,
       })))
       setTeksAsli(teks || '')
@@ -69,7 +68,6 @@ export default function Konfirmasi() {
 
     setLoading(true)
     try {
-      // Format sesuai yang diharapkan backend createTransaction
       const products = valid.map(({ nama_produk, jumlah, harga, confidence, is_manual }) => ({
         product_name:  nama_produk,
         quantity:      Number(jumlah),
@@ -95,9 +93,12 @@ export default function Konfirmasi() {
   const bdr     = isDark ? '#374151' : '#e2e8f0'
   const txt     = isDark ? '#f8fafc' : '#111827'
   const txtMut  = isDark ? '#94a3b8' : '#9ca3af'
-  const inputBg = isDark ? '#374151' : '#ffffff'
-  const inputBdr= isDark ? '#4b5563' : '#e2e8f0'
-  const gridCols = '35% 13% 24% 20% 8%'
+  
+  // PERBAIKAN: Ubah warna kotak input di mode terang agar tidak menyatu dengan background
+  const inputBg = isDark ? '#374151' : '#f1f5f9'
+  const inputBdr= isDark ? '#4b5563' : '#cbd5e1'
+  
+  const gridCols = '30% 12% 18% 18% 15% 7%'
 
   return (
     <MainLayout>
@@ -125,7 +126,9 @@ export default function Konfirmasi() {
             <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1.5 sm:mb-2" style={{ color: txtMut }}>
               TEKS CHAT ASLI
             </p>
-            <p className="text-xs sm:text-base italic font-medium" style={{ color: txt }}>"{teksAsli}"</p>
+            <p className="text-xs sm:text-base italic font-medium whitespace-pre-wrap leading-relaxed" style={{ color: txt }}>
+              {teksAsli}
+            </p>
           </div>
         )}
 
@@ -135,10 +138,12 @@ export default function Konfirmasi() {
           {/* Header tabel */}
           <div className="grid text-[8px] sm:text-xs font-bold uppercase tracking-widest px-2 sm:px-6 py-2.5 sm:py-4 gap-1 w-full"
             style={{ gridTemplateColumns: gridCols, background: isDark ? '#1f2937' : '#f8fafc', borderBottom: `1px solid ${bdr}`, color: txtMut }}>
-            <span className="truncate">Nama Produk</span>
-            <span className="text-center truncate">Jml</span>
-            <span className="text-center sm:text-left truncate">Harga</span>
+            {/* PERBAIKAN: Penambahan sm:pl-4 untuk merapikan judul dengan kotak input */}
+            <span className="truncate sm:pl-4">Nama Produk</span>
+            <span className="text-center truncate">JUMLAH</span>
+            <span className="text-center sm:text-left truncate sm:pl-4">Harga</span>
             <span className="text-right pr-1 sm:pr-2 truncate">Subtotal</span>
+            <span className="text-center truncate">Akurasi</span>
             <span />
           </div>
 
@@ -176,6 +181,16 @@ export default function Konfirmasi() {
                   {formatRupiah(Number(item.jumlah) * Number(item.harga))}
                 </span>
 
+                <div className="flex items-center justify-center">
+                  <span className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded text-[8px] sm:text-[10px] font-extrabold uppercase tracking-wide
+                    ${item.confidence === 'HIGH' ? (isDark ? 'bg-green-900/40 text-green-400' : 'bg-green-100 text-green-700') :
+                      item.confidence === 'MEDIUM' ? (isDark ? 'bg-orange-900/40 text-orange-400' : 'bg-orange-100 text-orange-700') :
+                      (isDark ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-700')}`}
+                  >
+                    {item.confidence || 'HIGH'}
+                  </span>
+                </div>
+
                 <button onClick={() => handleHapus(item.id)}
                   className="w-5 h-5 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 mx-auto text-[10px] sm:text-base">
                   ✕
@@ -202,7 +217,6 @@ export default function Konfirmasi() {
           )}
         </div>
 
-        {/* Tombol aksi bawah */}
         <div className="flex flex-row justify-between items-center mt-5 sm:mt-8 gap-3">
           <button onClick={() => navigate('/input')}
             className="px-3 sm:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold transition-all hover:-translate-x-1"

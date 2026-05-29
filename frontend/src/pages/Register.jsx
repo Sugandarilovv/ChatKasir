@@ -14,12 +14,48 @@ const FITUR = [
 
 export default function Register() {
   const { loading, handleRegister } = useAuth()
-  const { register, handleSubmit, watch, formState: { errors } } = useForm()
+  
+  // Mengambil setValue dan watch untuk fitur password
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm()
   const [showPass, setShowPass]   = useState(false)
   const [showPass2, setShowPass2] = useState(false)
 
+  // Memantau inputan secara real-time
+  const passwordValue = watch('password') || ''
+  const confirmValue  = watch('konfirmasi') || ''
+  const strength = getStrength(passwordValue)
+
   function onSubmit(data) { 
     handleRegister(data.nama, data.email, data.password) 
+  }
+
+  // Generate password super kuat (Kombinasi Huruf, Angka, dan Simbol)
+  function generateStrongPassword() {
+    const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const numbers = "0123456789"
+    const symbols = "!@#$%^&*"
+    const all = letters + numbers + symbols
+    
+    let pass = ""
+    // Wajib ada 1 huruf, 1 angka, 1 simbol agar langsung masuk kategori KUAT
+    pass += letters[Math.floor(Math.random() * letters.length)]
+    pass += numbers[Math.floor(Math.random() * numbers.length)]
+    pass += symbols[Math.floor(Math.random() * symbols.length)]
+    
+    // Tambah sisa 9 karakter acak
+    for (let i = 0; i < 9; i++) {
+      pass += all[Math.floor(Math.random() * all.length)]
+    }
+    
+    // Acak urutan
+    pass = pass.split('').sort(() => 0.5 - Math.random()).join('')
+    
+    // Masukkan ke input otomatis
+    setValue('password', pass, { shouldValidate: true })
+    setValue('konfirmasi', pass, { shouldValidate: true })
+    
+    setShowPass(true)
+    setShowPass2(true)
   }
 
   const eyeOpen = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -28,6 +64,7 @@ export default function Register() {
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh font-sans w-full">
       
+      {/* Sisi Kiri (Tampilan Asli Dipertahankan 100%) */}
       <div className="flex flex-col w-full lg:w-5/12 xl:w-120 shrink-0 relative bg-green-950 overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-green-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
@@ -62,6 +99,7 @@ export default function Register() {
         </div>
       </div>
 
+      {/* Sisi Kanan (Form Registrasi) */}
       <div className="flex-1 flex flex-col justify-center p-6 sm:p-10 md:p-12 bg-[linear-gradient(180deg,#f0fff8_0%,#e8faf2_50%,#f0fdf9_100%)]">
         <div className="w-full max-w-md mx-auto my-4 lg:my-auto">
 
@@ -83,24 +121,45 @@ export default function Register() {
               <label className="text-sm font-semibold text-gray-700">Email Akses</label>
               <input type="email" placeholder="contoh@umkm.com"
                 className={`w-full px-4 py-3 rounded-xl text-sm outline-none border ${errors.email ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4' : 'border-green-200 bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/20'}`}
-                {...register('email', { required: 'Email wajib diisi' })} />
+                {...register('email', { required: 'Email wajib diisi', pattern: { value: /^\S+@\S+$/i, message: 'Format email tidak valid' } })} />
               {errors.email && <p className="text-red-500 text-xs font-medium pl-1">{errors.email.message}</p>}
             </div>
 
+            {/* FOKUS PERUBAHAN: Input Password */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Password</label>
+              <div className="flex justify-between items-end">
+                <label className="text-sm font-semibold text-gray-700">Password</label>
+                <button type="button" onClick={generateStrongPassword} className="text-xs font-bold text-green-600 hover:text-green-700 bg-green-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1">
+                  <span>✨</span> Rekomendasi Sandi Kuat
+                </button>
+              </div>
               <div className="relative">
-                <input type={showPass ? 'text' : 'password'} placeholder="Minimal 8 karakter"
+                <input type={showPass ? 'text' : 'password'} placeholder="Minimal 6 karakter"
                   className={`w-full pl-4 pr-12 py-3 rounded-xl text-sm outline-none border [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${errors.password ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-4' : 'border-green-200 bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/20'}`}
-                  {...register('password', { required: 'Wajib diisi' })} />
+                  {...register('password', { required: 'Wajib diisi', minLength: { value: 6, message: 'Minimal 6 karakter' } })} />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-green-600 transition-colors">
                   {showPass ? eyeClosed : eyeOpen}
                 </button>
               </div>
+              
+              {/* Indikator Tiga Tingkat (Lemah, Sedang, Kuat) */}
+              {passwordValue.length > 0 && (
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden">
+                    {[1, 2, 3].map((level) => (
+                      <div key={level} className={`h-full flex-1 transition-all duration-300 ${strength >= level ? STRENGTH_COLORS[strength] : 'bg-green-200/40'}`} />
+                    ))}
+                  </div>
+                  <p className={`text-xs font-medium ${strength === 1 ? 'text-red-500' : strength === 2 ? 'text-yellow-600' : 'text-green-600'}`}>
+                    Kekuatan: {STRENGTH_LABELS[strength]}
+                  </p>
+                </div>
+              )}
               {errors.password && <p className="text-red-500 text-xs font-medium pl-1">{errors.password.message}</p>}
             </div>
 
-            <div className="space-y-1.5">
+            {/* FOKUS PERUBAHAN: Konfirmasi Password */}
+            <div className="space-y-1.5 pt-1">
               <label className="text-sm font-semibold text-gray-700">Ulangi Password</label>
               <div className="relative">
                 <input type={showPass2 ? 'text' : 'password'} placeholder="Ketik ulang password"
@@ -110,6 +169,13 @@ export default function Register() {
                   {showPass2 ? eyeClosed : eyeOpen}
                 </button>
               </div>
+
+              {/* Indikator Cocok/Tidak Cocok */}
+              {confirmValue.length > 0 && (
+                <p className={`text-xs font-medium pl-1 mt-1 ${passwordValue === confirmValue ? 'text-green-600' : 'text-red-500'}`}>
+                  {passwordValue === confirmValue ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok dengan input sebelumnya'}
+                </p>
+              )}
               {errors.konfirmasi && <p className="text-red-500 text-xs font-medium pl-1">{errors.konfirmasi.message}</p>}
             </div>
 
@@ -134,4 +200,25 @@ export default function Register() {
       </div>
     </div>
   )
+}
+
+// --- LOGIKA HITUNGAN KEKUATAN PASSWORD ---
+const STRENGTH_LABELS = ['', 'Lemah', 'Sedang', 'Kuat']
+const STRENGTH_COLORS = ['', 'bg-red-500', 'bg-yellow-500', 'bg-green-500']
+
+function getStrength(pass) {
+  if (!pass) return 0
+  
+  const hasLetter = /[a-zA-Z]/.test(pass)
+  const hasNumber = /[0-9]/.test(pass)
+  const hasSymbol = /[^a-zA-Z0-9]/.test(pass)
+
+  // Menghitung berapa tipe kombinasi yang dipakai user
+  const typesCount = (hasLetter ? 1 : 0) + (hasNumber ? 1 : 0) + (hasSymbol ? 1 : 0)
+
+  if (typesCount === 1) return 1 // Lemah (Hanya 1 tipe: huruf aja / angka aja / simbol aja)
+  if (typesCount === 2) return 2 // Sedang (Kombinasi 2 tipe)
+  if (typesCount === 3) return 3 // Kuat (Kombinasi 3 tipe)
+  
+  return 0
 }

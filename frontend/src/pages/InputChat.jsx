@@ -5,9 +5,10 @@ import MainLayout from '../components/layout/MainLayout'
 import { useTheme } from '../context/ThemeContext'
 import { showToast } from '../components/ui/Toast'
 
+// PERBAIKAN: Teks contoh diubah sesuai permintaan
 const CONTOH_LIST = [
-  'Kak mau pesen 2 nasi goreng spesial 18rb sama 1 es teh manis 5rb ya',
-  'Min pesan ayam bakar 1 porsi 25k, mie goreng 2 porsi 15rb ya',
+  '[29/5, 07.14] +62 811-2222-3333: order paket ayam bakar madu 10 pack\n[29/5, 07.21] Warung Sejahtera: siap harganya 35k',
+  '[28/05, 05:26] Budi: order paket ayam bakar madu 10 pack sama es kopi susu gula aren 5 cup\n[28/05, 06:01] Warung Sejahtera: siap paket ayam bakar madu harganya 35k dan es kopi susu gula aren harganya 18k jadi total tagihan katering semuanya 440k',
 ]
 
 const TIPS = [
@@ -41,7 +42,7 @@ export default function InputChat() {
       setPasting(true)
       const text = await navigator.clipboard.readText()
       if (!text.trim()) { showToast('Clipboard kosong.', 'warning'); return }
-      setTeks((prev) => prev + (prev ? ' ' : '') + text)
+      setTeks((prev) => prev + (prev ? '\n' : '') + text)
       showToast('Teks berhasil ditempel!', 'success')
       textareaRef.current?.focus()
     } catch {
@@ -81,7 +82,6 @@ export default function InputChat() {
           </p>
         </div>
 
-        {/* Card input utama */}
         <div className="rounded-2xl overflow-hidden mb-5 transition-all duration-200"
           style={{
             background: bg, border: `1.5px solid ${cardBdr}`,
@@ -131,7 +131,7 @@ export default function InputChat() {
             ref={textareaRef}
             className="w-full px-5 py-4 text-sm resize-none outline-none custom-scrollbar"
             style={{ height: 220, background: bg, color: txt, lineHeight: '1.75', caretColor: '#16a34a' }}
-            placeholder={`Tempel teks chat di sini...\n\nContoh:\n"${CONTOH_LIST[0]}"`}
+            placeholder="Tempel teks chat di sini..."
             value={teks}
             onChange={(e) => setTeks(e.target.value)}
             disabled={loading}
@@ -166,7 +166,6 @@ export default function InputChat() {
           </div>
         </div>
 
-        {/* Tips */}
         <div className="rounded-2xl p-5" style={{ background: isDark ? '#0c1f14' : '#f0fdf4', border: `1px solid ${isDark ? '#14532d' : '#bbf7d0'}` }}>
           <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: isDark ? '#4ade80' : '#15803d' }}>
             Tips Penulisan

@@ -18,25 +18,24 @@ export default function LupaPassword() {
   const [refreshToken,    setRefreshToken]   = useState('')
   const [tokenError,      setTokenError]     = useState(false)
 
-  // ── Baca token dari URL saat halaman dibuka via link email ──────────────────
+  // Memantau kekuatan password secara real-time
+  const strength = getStrength(newPass)
+
   useEffect(() => {
-    // Supabase kirim token via fragment hash: /lupa-password#access_token=...&type=recovery
-    const hash   = window.location.hash   // "#access_token=xxx&refresh_token=yyy&type=recovery"
-    const search = window.location.search // fallback jika pakai query string
+    const hash   = window.location.hash   
+    const search = window.location.search 
 
     let accessToken = null
     let refToken    = null
     let type        = null
 
     if (hash) {
-      // Hapus '#' di depan lalu parse seperti query string
       const params = new URLSearchParams(hash.slice(1))
       accessToken  = params.get('access_token')
       refToken     = params.get('refresh_token')
       type         = params.get('type')
     }
 
-    // Fallback: coba query string
     if (!accessToken && search) {
       const params = new URLSearchParams(search)
       accessToken  = params.get('access_token')
@@ -50,11 +49,9 @@ export default function LupaPassword() {
         setRefreshToken(refToken)
         setStep(3)
       } else {
-        // Ada type=recovery tapi token tidak lengkap → tampilkan pesan error
         setTokenError(true)
         setStep(3)
       }
-      // Bersihkan token dari URL address bar agar tidak terlihat
       window.history.replaceState(null, '', location.pathname)
     }
   }, [location.pathname])
@@ -64,7 +61,6 @@ export default function LupaPassword() {
     navigate('/login')
   }
 
-  // ── Step 1: Kirim link recovery ke email ───────────────────────────────────
   async function handleKirimEmailReset(e) {
     e.preventDefault()
     if (!email) return showToast('Masukkan email terlebih dahulu', 'error')
@@ -83,11 +79,10 @@ export default function LupaPassword() {
     }
   }
 
-  // ── Step 3: Simpan password baru ───────────────────────────────────────────
   async function handleSimpanPassword(e) {
     e.preventDefault()
 
-    if (newPass.length < 8)        return showToast('Sandi minimal 8 karakter', 'error')
+    if (newPass.length < 6)        return showToast('Sandi minimal 6 karakter', 'error')
     if (newPass !== confirmPass)   return showToast('Konfirmasi kata sandi tidak cocok', 'error')
     if (!recoveryToken || !refreshToken)
       return showToast('Token tidak valid. Silakan ulangi proses dari awal.', 'error')
@@ -106,7 +101,33 @@ export default function LupaPassword() {
     }
   }
 
-  // ── Icons ──────────────────────────────────────────────────────────────────
+  // FUNGSI BARU: Men-generate password super kuat (Kombinasi Huruf, Angka, dan Simbol)
+  function generateStrongPassword() {
+    const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const numbers = "0123456789"
+    const symbols = "!@#$%^&*"
+    const all = letters + numbers + symbols
+    
+    let pass = ""
+    pass += letters[Math.floor(Math.random() * letters.length)]
+    pass += numbers[Math.floor(Math.random() * numbers.length)]
+    pass += symbols[Math.floor(Math.random() * symbols.length)]
+    
+    for (let i = 0; i < 9; i++) {
+      pass += all[Math.floor(Math.random() * all.length)]
+    }
+    
+    pass = pass.split('').sort(() => 0.5 - Math.random()).join('')
+    
+    // Otomatis isikan ke state
+    setNewPass(pass)
+    setConfirmPass(pass)
+    
+    // Tampilkan agar bisa dicopy user
+    setShowPass(true)
+    setShowConfirmPass(true)
+  }
+
   const eyeOpen = (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -128,12 +149,10 @@ export default function LupaPassword() {
     </svg>
   )
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center font-sans p-6 bg-[linear-gradient(180deg,#f0fff8_0%,#e8faf2_50%,#f0fdf9_100%)]">
       <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-sm border border-gray-200 animate-fade-up">
 
-        {/* Header — tidak ditampilkan di step 2 */}
         {step !== 2 && (
           <div className="mb-8">
             {step === 1 && (
@@ -153,7 +172,6 @@ export default function LupaPassword() {
           </div>
         )}
 
-        {/* ── STEP 1: Input email ───────────────────────────────────────── */}
         {step === 1 && (
           <form onSubmit={handleKirimEmailReset} className="space-y-5 animate-fade-in">
             <div className="space-y-1.5">
@@ -176,7 +194,6 @@ export default function LupaPassword() {
           </form>
         )}
 
-        {/* ── STEP 2: Pemberitahuan cek email ──────────────────────────── */}
         {step === 2 && (
           <div className="text-center animate-fade-in py-6">
             <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -210,7 +227,6 @@ export default function LupaPassword() {
           </div>
         )}
 
-        {/* ── STEP 3: Token error ───────────────────────────────────────── */}
         {step === 3 && tokenError && (
           <div className="text-center animate-fade-in py-4 space-y-4">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto">
@@ -237,19 +253,22 @@ export default function LupaPassword() {
           </div>
         )}
 
-        {/* ── STEP 3: Form password baru ────────────────────────────────── */}
         {step === 3 && !tokenError && (
           <form onSubmit={handleSimpanPassword} className="space-y-5 animate-fade-in">
 
-            {/* Password baru */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">Kata Sandi Baru</label>
+              <div className="flex justify-between items-end">
+                <label className="text-sm font-semibold text-gray-700">Kata Sandi Baru</label>
+                <button type="button" onClick={generateStrongPassword} className="text-xs font-bold text-green-600 hover:text-green-700 bg-green-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1">
+                  <span>✨</span> Rekomendasi Sandi Kuat
+                </button>
+              </div>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
-                  placeholder="Minimal 8 karakter"
+                  placeholder="Minimal 6 karakter"
                   autoFocus
                   className="w-full pl-4 pr-12 py-3 rounded-xl text-sm outline-none border border-gray-200 bg-white [&::-ms-reveal]:hidden [&::-ms-clear]:hidden focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all"
                 />
@@ -259,34 +278,22 @@ export default function LupaPassword() {
                 </button>
               </div>
 
-              {/* Indikator kekuatan password */}
+              {/* Indikator Kekuatan 3 Tingkat */}
               {newPass.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <div className="flex gap-1">
-                    {[1,2,3,4].map((level) => (
-                      <div key={level} className={`h-1 flex-1 rounded-full transition-all ${
-                        getStrength(newPass) >= level
-                          ? level <= 1 ? 'bg-red-400'
-                          : level <= 2 ? 'bg-yellow-400'
-                          : level <= 3 ? 'bg-blue-400'
-                          : 'bg-green-500'
-                          : 'bg-gray-200'
-                      }`} />
+                <div className="mt-1.5 space-y-1 pt-1">
+                  <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden">
+                    {[1, 2, 3].map((level) => (
+                      <div key={level} className={`h-full flex-1 transition-all duration-300 ${strength >= level ? STRENGTH_COLORS[strength] : 'bg-green-200/40'}`} />
                     ))}
                   </div>
-                  <p className={`text-xs font-medium ${
-                    getStrength(newPass) <= 1 ? 'text-red-500' :
-                    getStrength(newPass) <= 2 ? 'text-yellow-600' :
-                    getStrength(newPass) <= 3 ? 'text-blue-500' : 'text-green-600'
-                  }`}>
-                    {getStrengthLabel(newPass)}
+                  <p className={`text-xs font-medium ${strength === 1 ? 'text-red-500' : strength === 2 ? 'text-yellow-600' : 'text-green-600'}`}>
+                    Kekuatan: {STRENGTH_LABELS[strength]}
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Konfirmasi password */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pt-1">
               <label className="text-sm font-semibold text-gray-700">Konfirmasi Kata Sandi Baru</label>
               <div className="relative">
                 <input
@@ -301,10 +308,11 @@ export default function LupaPassword() {
                   {showConfirmPass ? eyeClosed : eyeOpen}
                 </button>
               </div>
-              {/* Indikator cocok / tidak */}
+              
+              {/* Indikator Cocok */}
               {confirmPass.length > 0 && (
-                <p className={`text-xs font-medium ${newPass === confirmPass ? 'text-green-600' : 'text-red-500'}`}>
-                  {newPass === confirmPass ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok'}
+                <p className={`text-xs font-medium pl-1 mt-1 ${newPass === confirmPass ? 'text-green-600' : 'text-red-500'}`}>
+                  {newPass === confirmPass ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok dengan input sebelumnya'}
                 </p>
               )}
             </div>
@@ -323,21 +331,22 @@ export default function LupaPassword() {
   )
 }
 
-// ── Helpers kekuatan password ────────────────────────────────────────────────
-function getStrength(pass) {
-  let score = 0
-  if (pass.length >= 8)              score++
-  if (pass.length >= 12)             score++
-  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++
-  if (/[0-9]/.test(pass))            score++
-  if (/[^A-Za-z0-9]/.test(pass))    score++
-  return Math.min(score, 4)
-}
+// ── LOGIKA HITUNGAN KEKUATAN PASSWORD ─────────────────────────────────────────
+const STRENGTH_LABELS = ['', 'Lemah', 'Sedang', 'Kuat']
+const STRENGTH_COLORS = ['', 'bg-red-500', 'bg-yellow-500', 'bg-green-500']
 
-function getStrengthLabel(pass) {
-  const s = getStrength(pass)
-  if (s <= 1) return 'Lemah — tambahkan huruf besar, angka, atau simbol'
-  if (s === 2) return 'Sedang'
-  if (s === 3) return 'Kuat'
-  return 'Sangat kuat'
+function getStrength(pass) {
+  if (!pass) return 0
+  
+  const hasLetter = /[a-zA-Z]/.test(pass)
+  const hasNumber = /[0-9]/.test(pass)
+  const hasSymbol = /[^a-zA-Z0-9]/.test(pass)
+
+  const typesCount = (hasLetter ? 1 : 0) + (hasNumber ? 1 : 0) + (hasSymbol ? 1 : 0)
+
+  if (typesCount === 1) return 1 // Lemah
+  if (typesCount === 2) return 2 // Sedang
+  if (typesCount === 3) return 3 // Kuat
+  
+  return 0
 }
