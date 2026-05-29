@@ -1,54 +1,72 @@
 import api from './axiosInstance'
 
-const USE_MOCK = true
-
-const MOCK_TRANSACTIONS = [
-  { id: 1, nama_produk: 'Nasi Goreng Spesial', jumlah: 2, harga: 18000 },
-  { id: 2, nama_produk: 'Es Teh Manis',        jumlah: 3, harga: 5000  },
-  { id: 3, nama_produk: 'Ayam Bakar',          jumlah: 1, harga: 25000 },
-  { id: 4, nama_produk: 'Mie Goreng',          jumlah: 2, harga: 15000 },
-  { id: 5, nama_produk: 'Jus Alpukat',         jumlah: 1, harga: 12000 },
-]
-
-// Generate 30 hari data mock agar chart bisa scroll penuh
-const daily30 = Array.from({ length: 30 }, (_, i) => ({
-  tanggal: String(i + 1),
-  total: Math.floor(50000 + Math.random() * 150000 + Math.sin(i * 0.7) * 40000),
-}))
-
-const totalBulan    = daily30.reduce((s, d) => s + d.total, 0)
-const rataRataHarian = Math.round(totalBulan / daily30.length)
-
-const MOCK_REPORT = {
-  total_pemasukan:  totalBulan,
-  total_transaksi:  47,
-  rata_rata_harian: rataRataHarian,
-  daily_summary: daily30,
-  top_products: [
-    { nama_produk: 'Nasi Goreng Spesial', total_terjual: 28, total_pendapatan: 504000 },
-    { nama_produk: 'Ayam Bakar',          total_terjual: 19, total_pendapatan: 475000 },
-    { nama_produk: 'Mie Goreng',          total_terjual: 22, total_pendapatan: 330000 },
-    { nama_produk: 'Es Teh Manis',        total_terjual: 35, total_pendapatan: 175000 },
-    { nama_produk: 'Jus Alpukat',         total_terjual: 12, total_pendapatan: 144000 },
-  ],
-}
-
-export async function saveTransactions(items) {
-  if (USE_MOCK) return { message: 'Tersimpan (mock)', items }
-  const res = await api.post('/transactions', { items })
+// Simpan transaksi yang sudah dikonfirmasi user
+// items: array dari { product_name, quantity, price_satuan, total, confidence, is_manual }
+export async function saveTransactions(extractionId, products) {
+  const res = await api.post('/transactions', {
+    extraction_id: extractionId,
+    products,
+  })
   return res.data
 }
 
-export async function getTransactions({ tanggal, page = 1, limit = 20 } = {}) {
-  if (USE_MOCK) return { transactions: MOCK_TRANSACTIONS }
-  const params = { page, limit }
-  if (tanggal) params.tanggal = tanggal
-  const res = await api.get('/transactions', { params })
-  return res.data
+// Ambil transaksi harian (untuk Dashboard)
+// tanggal: 'YYYY-MM-DD'
+export async function getTransactions({ tanggal } = {}) {
+  const params = {}
+  if (tanggal) {
+    params.startDate = tanggal
+    params.endDate   = tanggal
+  }
+  const res = await api.get('/transactions/report', { params })
+  // Backend kembalikan: { summary, chart_data, top_products, transactions }
+  // Kita mapping transactions ke format yang dipakai Dashboard
+  const transactions = (res.data.transactions || []).map((t) => ({
+    id:          t.id,
+    nama_produk: t.product_name,
+    jumlah:      t.quantity,
+    harga:       t.price_satuan,
+  }))
+  return { transactions }
 }
 
+// Laporan bulanan (untuk halaman Laporan)
 export async function getMonthlyReport(bulan, tahun) {
-  if (USE_MOCK) return MOCK_REPORT
-  const res = await api.get('/report/monthly', { params: { bulan, tahun } })
-  return res.data
+  const res = await api.get('/report/monthly', { params: { month: bulan, year: tahun } })
+  // Backend kembalikan: { summary: { total_revenue, total_items_sold, total_transactions }, data }
+  const { summary, data } = res.data
+
+  // Hitung daily_summary dari data transaksi
+  const dailyMap = {}
+  ;(data || []).forEach((item) => {
+    const tgl = new Date(item.transaction_date).getDate()
+    if (!dailyMap[tgl]) dailyMap[tgl] = 0
+    dailyMap[tgl] += Number(item.total)
+  })
+  const daily_summary = Object.entries(dailyMap).map(([tgl, total]) => ({
+    tanggal: String(tgl),
+    total,
+  }))
+
+  // Hitung top_products
+  const prodMap = {}
+  ;(data || []).forEach((item) => {
+    const key = item.product_name
+    if (!prodMap[key]) prodMap[key] = { nama_produk: key, total_terjual: 0, total_pendapatan: 0 }
+    prodMap[key].total_terjual   += Number(item.quantity)
+    prodMap[key].total_pendapatan += Number(item.total)
+  })
+  const top_products = Object.values(prodMap)
+    .sort((a, b) => b.total_terjual - a.total_terjual)
+    .slice(0, 5)
+
+  return {
+    total_pemasukan:  summary.total_revenue,
+    total_transaksi:  summary.total_transactions,
+    rata_rata_harian: summary.total_revenue
+      ? Math.round(summary.total_revenue / new Date(tahun, bulan, 0).getDate())
+      : 0,
+    daily_summary,
+    top_products,
+  }
 }
