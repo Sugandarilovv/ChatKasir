@@ -30,8 +30,10 @@ export default function Dashboard() {
   const tanggalString = formatDateToYMD(selectedDate)
   const { data, loading, error } = useTransactions(tanggalString)
 
-  const totalNominal  = data.reduce((s, t) => s + t.jumlah * t.harga, 0)
-  const totalTranaksi = data.length
+  const totalNominal  = data.reduce((s, t) => s + (t.total || t.jumlah * t.harga), 0)
+  // Jumlah pesanan unik = jumlah extraction_id yang berbeda (1 chat bisa punya banyak item)
+  const pesananUnik   = new Set(data.map(t => t.extraction_id).filter(Boolean)).size || data.length
+  const totalTranaksi = pesananUnik
   const rataRata      = totalTranaksi > 0 ? Math.round(totalNominal / totalTranaksi) : 0
 
   const bgTable     = isDark ? '#1e293b' : '#ffffff' 
@@ -162,7 +164,7 @@ export default function Dashboard() {
               style={{ gridTemplateColumns: gridCols, borderColor: borderColor, color: textMuda, background: bgHeader }}>
               <span className="text-center truncate">No</span>
               <span className="truncate">Produk</span>
-              <span className="text-center truncate">Jml</span>
+              <span className="text-center truncate">Jumlah</span>
               <span className="text-right pr-1 sm:pr-2 truncate">Harga</span>
               <span className="text-right truncate">Subtotal</span>
             </div>
@@ -185,7 +187,7 @@ export default function Dashboard() {
                     <span className="text-center text-[9px] sm:text-sm font-medium" style={{ color: textMuda }}>{t.jumlah}</span>
                     <span className="text-right text-[9px] sm:text-sm font-medium pr-1 sm:pr-2 truncate" style={{ color: textMuda }}>{formatRupiah(t.harga)}</span>
                     <span className="text-right text-[9px] sm:text-sm font-extrabold truncate" style={{ color: '#16a34a' }}>
-                      {formatRupiah(t.jumlah * t.harga)}
+                      {formatRupiah(t.total || t.jumlah * t.harga)}
                     </span>
                   </div>
                 ))}

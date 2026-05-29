@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { predictFromChat } from '../services/aiService'
 import MainLayout from '../components/layout/MainLayout'
 import { useTheme } from '../context/ThemeContext'
 import { showToast } from '../components/ui/Toast'
 
-// PERBAIKAN: Teks contoh diubah sesuai permintaan
 const CONTOH_LIST = [
   '[29/5, 07.14] +62 811-2222-3333: order paket ayam bakar madu 10 pack\n[29/5, 07.21] Warung Sejahtera: siap harganya 35k',
   '[28/05, 05:26] Budi: order paket ayam bakar madu 10 pack sama es kopi susu gula aren 5 cup\n[28/05, 06:01] Warung Sejahtera: siap paket ayam bakar madu harganya 35k dan es kopi susu gula aren harganya 18k jadi total tagihan katering semuanya 440k',
@@ -37,6 +36,25 @@ export default function InputChat() {
   const txtHint = isDark ? '#64748b' : '#6b7280'  
   const cardBdr = isReady ? '#4ade80' : isDark ? '#1e293b' : '#d1fae5'
 
+  // --- LOGIKA SIMPAN OTOMATIS: Muat Draft ---
+  useEffect(() => {
+    const autoSave = JSON.parse(localStorage.getItem('ck_autosave') ?? 'true')
+    if (autoSave) {
+      const draft = localStorage.getItem('ck_draft_input')
+      if (draft) setTeks(draft)
+    }
+  }, [])
+
+  // --- LOGIKA SIMPAN OTOMATIS: Simpan ke Draft saat Mengetik ---
+  useEffect(() => {
+    const autoSave = JSON.parse(localStorage.getItem('ck_autosave') ?? 'true')
+    if (autoSave && teks.trim().length > 0) {
+      localStorage.setItem('ck_draft_input', teks)
+    } else if (!autoSave || teks.trim().length === 0) {
+      localStorage.removeItem('ck_draft_input')
+    }
+  }, [teks])
+
   async function handlePaste() {
     try {
       setPasting(true)
@@ -58,6 +76,7 @@ export default function InputChat() {
       const result = await predictFromChat(teks.trim())
       sessionStorage.setItem('hasil_ai', JSON.stringify(result))
       sessionStorage.setItem('teks_chat', teks.trim())
+      localStorage.removeItem('ck_draft_input') // Bersihkan draft jika sukses pindah ke konfirmasi
       navigate('/konfirmasi')
     } catch (err) {
       showToast(err.response?.data?.detail || 'Gagal memproses. Coba lagi.', 'error')
@@ -67,6 +86,11 @@ export default function InputChat() {
   function pakaiContoh() {
     setTeks(CONTOH_LIST[contohIdx])
     setContohIdx((p) => (p + 1) % CONTOH_LIST.length)
+  }
+
+  function hapusSemuaTeks() {
+    setTeks('')
+    localStorage.removeItem('ck_draft_input')
   }
 
   return (
@@ -138,7 +162,7 @@ export default function InputChat() {
           />
 
           <div className="flex items-center justify-between px-4 py-3 border-t" style={{ background: barBg, borderColor: barBdr }}>
-            <button onClick={() => setTeks('')} disabled={!teks || loading}
+            <button onClick={hapusSemuaTeks} disabled={!teks || loading}
               style={{
                 fontSize: 12, fontWeight: 600, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: 5, transition: 'color 0.2s',
                 color: !teks || loading ? (isDark ? '#374151' : '#9ca3af') : (isDark ? '#f87171' : '#dc2626'),
