@@ -112,3 +112,10 @@ export async function updateProfile(nama, foto) {
   localStorage.setItem('user', JSON.stringify(updated))
   return res.data
 }
+
+// ─── DELETE ACCOUNT ──────────────────────────────────────────────────────────
+export async function deleteAccount() {
+  // Backend route: DELETE /users/account (userRoutes.js)
+  const res = await api.delete('/users/account')
+  return res.data
+}
