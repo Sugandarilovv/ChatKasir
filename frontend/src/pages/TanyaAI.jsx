@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import MainLayout from '../components/layout/MainLayout'
 import { useTheme } from '../context/ThemeContext'
 import { getCurrentUser } from '../services/authService'
+import { tanyaAI } from '../services/aiService'
 
 export default function TanyaAI() {
   const { theme } = useTheme()
@@ -36,41 +37,37 @@ export default function TanyaAI() {
     if (!input.trim() || loading) return
 
     const userText = input.trim()
+    
+    // Tampilkan pesan user ke layar
     setMessages((prev) => [...prev, { role: 'user', text: userText }])
     setInput('')
     setLoading(true)
 
-    // =================================================================
-    // CATATAN UNTUK PENGEMBANG (INTEGRASI AI SUNGGUHAN):
-    // Untuk membuat AI ini bisa menjawab APAPUN secara nyata, 
-    // kamu harus memanggil API (seperti Gemini API) di sini.
-    // Contoh implementasi jika API sudah siap:
-    //
-    // try {
-    //   const res = await axios.post('http://localhost:8000/ask', { question: userText })
-    //   setMessages(prev => [...prev, { role: 'ai', text: res.data.answer }])
-    // } catch (err) { ... }
-    // =================================================================
+    try {
+      // 1. Format history agar sesuai dengan kebutuhan API Gemini (user dan model)
+      const formattedHistory = messages.map(msg => ({
+        role: msg.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+      }))
 
-    // SIMULASI RESPONS AI (MOCK) SEMENTARA
-    setTimeout(() => {
-      let aiReply = 'Saya adalah asisten AI. Saya siap membantu Anda menjawab berbagai pertanyaan, mulai dari pengetahuan umum, bisnis, hingga teknologi.'
-      
-      const textLower = userText.toLowerCase()
-      
-      // Simulasi kecerdasan AI untuk pertanyaan spesifik (seperti di video)
-      if (textLower.includes('jokowi') && textLower.includes('bapak')) {
-        aiReply = 'Nama ayahanda dari Presiden Joko Widodo (Jokowi) adalah Bapak Noto Mihardjo.'
-      } else if (textLower.includes('halo') || textLower.includes('hai')) {
-        aiReply = `Halo ${namaPanggilan}! Ada yang bisa saya bantu hari ini?`
-      }
+      // 2. Panggil API AI sungguhan melalui fungsi di aiService
+      const aiReply = await tanyaAI(formattedHistory, userText)
 
+      // 3. Tampilkan balasan AI ke layar
       setMessages((prev) => [
         ...prev, 
         { role: 'ai', text: aiReply }
       ])
+    } catch (error) {
+      // Tangani jika terjadi error koneksi / server
+      setMessages((prev) => [
+        ...prev, 
+        { role: 'ai', text: 'Maaf, terjadi kesalahan saat menghubungi AI. Silakan coba lagi.' }
+      ])
+    } finally {
+      // Matikan indikator loading
       setLoading(false)
-    }, 1500) // delay 1.5 detik agar terlihat seperti AI sedang berpikir
+    }
   }
 
   // --- WARNA TEMA (Tailwind v4 & CSS Variables) ---
@@ -89,7 +86,7 @@ export default function TanyaAI() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar relative">
           
           {messages.length === 0 ? (
-            /* TAMPILAN AWAL (Logo dihilangkan sesuai permintaan) */
+            /* TAMPILAN AWAL */
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
               <h1 className="text-3xl sm:text-5xl font-bold mb-3" style={{ color: textUtama, letterSpacing: '-1px' }}>
                 Halo, {namaPanggilan}
