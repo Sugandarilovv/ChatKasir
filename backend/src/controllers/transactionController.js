@@ -1,8 +1,9 @@
 const { supabase } = require("../config/supabase");
 
+// 1. Fungsi Panggil AI
 const callAIExtract = async (text) => {
   try {
-    // coba health check — TANPA API key
+    // coba health check — tanpa API key
     const health = await fetch(`${process.env.AI_API_URL}/health`);
     const healthData = await health.json();
     console.log("Health:", healthData);
@@ -11,10 +12,15 @@ const callAIExtract = async (text) => {
 
     if (!healthData.model_loaded) {
       console.warn("Model belum ready");
-      return { status: "failed", predictions: [] };
+      return {
+        status: "failed",
+        results: [],
+        total_akumulasi: 0,
+        clean_text: text,
+      };
     }
 
-    // predict — DENGAN API key
+    // predict — dengan API key
     const response = await fetch(`${process.env.AI_API_URL}/predict`, {
       method: "POST",
       headers: {
@@ -27,28 +33,44 @@ const callAIExtract = async (text) => {
     if (!response.ok) {
       const errData = await response.json();
       console.error("AI API error:", errData);
-      return { status: "failed", predictions: [] };
+      return {
+        status: "failed",
+        results: [],
+        total_akumulasi: 0,
+        clean_text: text,
+      };
     }
 
     const data = await response.json();
     console.log("Response dari AI:", JSON.stringify(data));
 
-    const predictions = (data.results || []).map((item) => ({
-      product_name: item.product,
+    // Mapping ke struktur baru dari AI (results & subtotal)
+    const results = (data.results || []).map((item) => ({
+      product_name: item.product_name,
       quantity: item.quantity,
       price_satuan: item.price_satuan,
-      total: item.total,
+      subtotal: item.subtotal,
       confidence: item.confidence,
     }));
 
-    return { status: "success", predictions };
+    return {
+      status: "success",
+      results: results,
+      total_akumulasi: data.total_akumulasi || 0,
+      clean_text: data.clean_text || text,
+    };
   } catch (err) {
     console.error("Tidak bisa konek ke AI API:", err.message);
-    return { status: "failed", predictions: [] };
+    return {
+      status: "failed",
+      results: [],
+      total_akumulasi: 0,
+      clean_text: text,
+    };
   }
 };
 
-// POST /transactions/analyze - buat analisa AI, blm masuk ke tabel transactions
+// 2. POST /transactions/analyze - buat analisa AI
 const analyzeTransaction = async (req, res) => {
   const { raw_text } = req.body;
   const user_id = req.user.id;
@@ -71,7 +93,7 @@ const analyzeTransaction = async (req, res) => {
 
   const aiResponse = await callAIExtract(raw_text);
 
-  if (!aiResponse.predictions || aiResponse.predictions.length === 0) {
+  if (!aiResponse.results || aiResponse.results.length === 0) {
     await supabase
       .from("chat_extractions")
       .update({ status: "failed" })
@@ -89,11 +111,12 @@ const analyzeTransaction = async (req, res) => {
   return res.status(200).json({
     message: "Teks berhasil dianalisis oleh AI",
     extraction_id: extraction.id,
-    predictions: aiResponse.predictions,
+    results: aiResponse.results,
+    total_akumulasi: aiResponse.total_akumulasi,
   });
 };
 
-// POST /transactions — tuk menyimpan data transaksi yang sudah dikonfirmasi/fix dari Frontend
+// 3. POST /transactions — tuk menyimpan data permanen
 const createTransaction = async (req, res) => {
   const user_id = req.user.id;
   const { extraction_id, products } = req.body;
@@ -114,7 +137,8 @@ const createTransaction = async (req, res) => {
       product_name: item.product_name,
       quantity: item.quantity,
       price_satuan: item.price_satuan,
-      total: item.total,
+      // Support subtotal (dari AI baru) atau total (dari format lama) supaya aman di DB
+      total: item.subtotal || item.total,
       confidence: item.confidence || "HIGH",
       is_manual: item.is_manual || false,
       transaction_date: new Date().toISOString().split("T")[0],
@@ -140,24 +164,22 @@ const createTransaction = async (req, res) => {
   }
 };
 
-// GET /transactions (dengan filter & paginasi)
+// 4. GET /transactions (dengan filter & paginasi)
 const getTransactions = async (req, res) => {
   const user_id = req.user.id;
   const { startDate, endDate, page = 1, limit = 10 } = req.query;
 
-  // Hitung range untuk paginasi
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
   try {
     let query = supabase
       .from("transactions")
-      .select("*", { count: "exact" }) // count: untuk tau jumlah total data buat pagination di Frontend
+      .select("*", { count: "exact" })
       .eq("user_id", user_id)
       .order("transaction_date", { ascending: false })
       .range(from, to);
 
-    // nambahin filter tanggal
     if (startDate) query = query.gte("transaction_date", startDate);
     if (endDate) query = query.lte("transaction_date", endDate);
 
@@ -182,18 +204,16 @@ const getTransactions = async (req, res) => {
   }
 };
 
-// GET /transactions/report — utk suplai data ke dashboard frontend
+// 5. GET /transactions/report — utk suplai data ke dashboard frontend
 const getDashboardReport = async (req, res) => {
   const user_id = req.user.id;
   const { startDate, endDate } = req.query;
 
   if (!startDate || !endDate) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Query startDate dan endDate wajib diisi. Contoh: ?startDate=2026-05-01&endDate=2026-05-07",
-      });
+    return res.status(400).json({
+      error:
+        "Query startDate dan endDate wajib diisi. Contoh: ?startDate=2026-05-01&endDate=2026-05-07",
+    });
   }
 
   try {
@@ -260,15 +280,15 @@ const getDashboardReport = async (req, res) => {
     return res.status(200).json({
       message: "Data laporan dashboard berhasil di-generate",
       summary: {
-        total_revenue: totalRevenue, // Pemasukan rentang waktu ini (Bisa harian/mingguan/bulanan)
-        total_transactions: totalTransactions, // Jumlah nota/pesanan
-        total_items_sold: totalItemsSold, // Total produk/item terjual (Buat footer tabel Alfan)
-        average_order_value: averageOrderValue, // Rata-rata per pesanan
-        average_revenue_per_day: averageRevenuePerDay, // Rata-rata uang masuk per hari
+        total_revenue: totalRevenue,
+        total_transactions: totalTransactions,
+        total_items_sold: totalItemsSold,
+        average_order_value: averageOrderValue,
+        average_revenue_per_day: averageRevenuePerDay,
       },
-      chart_data: chartData, // Data buat Grafik Naik-Turun
-      top_products: topProducts, // Data buat Menu Paling Laris
-      transactions: transactions, // Daftar produk lengkap
+      chart_data: chartData,
+      top_products: topProducts,
+      transactions: transactions,
     });
   } catch (error) {
     return res

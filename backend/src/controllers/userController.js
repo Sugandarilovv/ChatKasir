@@ -19,7 +19,6 @@ const updateProfile = async (req, res) => {
   const userId = req.user.id;
   const { full_name, avatar_url } = req.body;
 
-  // Hanya update field yang dikirim (tidak wajib keduanya)
   const updateData = {};
   if (full_name !== undefined) updateData.full_name = full_name;
   if (avatar_url !== undefined) updateData.avatar_url = avatar_url;

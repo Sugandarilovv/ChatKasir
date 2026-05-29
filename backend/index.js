@@ -9,7 +9,6 @@ const userRoutes = require("./src/routes/userRoutes");
 
 const app = express();
 
-// Konfigurasi CORS
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -41,7 +40,6 @@ app.use(
   }),
 );
 
-// Middleware untuk parsing JSON
 app.use(express.json());
 
 app.use("/auth", authRoutes);
