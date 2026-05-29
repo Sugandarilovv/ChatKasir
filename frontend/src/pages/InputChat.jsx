@@ -7,8 +7,7 @@ import { showToast } from '../components/ui/Toast'
 
 const CONTOH_LIST = [
   'Kak mau pesen 2 nasi goreng spesial 18rb sama 1 es teh manis 5rb ya',
-  'Min pesan ayam bakar 1 porsi 25k, mie goreng 2 15rb, jus alpukat 12000',
-  'Kak order 3 bakso urat 12rb dan 2 es jeruk 6rb, dibungkus ya',
+  'Min pesan ayam bakar 1 porsi 25k, mie goreng 2 porsi 15rb ya',
 ]
 
 const TIPS = [
