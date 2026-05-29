@@ -142,9 +142,9 @@ export default function Register() {
                 </button>
               </div>
               
-              {/* Indikator Tiga Tingkat (Lemah, Sedang, Kuat) */}
-              {passwordValue.length > 0 && (
-                <div className="mt-1.5 space-y-1">
+              {/* PERBAIKAN: Indikator Tiga Tingkat dengan animasi max-h untuk mencegah scroll lompat */}
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${passwordValue.length > 0 ? 'max-h-16 opacity-100 mt-1.5' : 'max-h-0 opacity-0 mt-0'}`}>
+                <div className="space-y-1">
                   <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden">
                     {[1, 2, 3].map((level) => (
                       <div key={level} className={`h-full flex-1 transition-all duration-300 ${strength >= level ? STRENGTH_COLORS[strength] : 'bg-green-200/40'}`} />
@@ -154,7 +154,8 @@ export default function Register() {
                     Kekuatan: {STRENGTH_LABELS[strength]}
                   </p>
                 </div>
-              )}
+              </div>
+              
               {errors.password && <p className="text-red-500 text-xs font-medium pl-1">{errors.password.message}</p>}
             </div>
 
@@ -170,12 +171,13 @@ export default function Register() {
                 </button>
               </div>
 
-              {/* Indikator Cocok/Tidak Cocok */}
-              {confirmValue.length > 0 && (
-                <p className={`text-xs font-medium pl-1 mt-1 ${passwordValue === confirmValue ? 'text-green-600' : 'text-red-500'}`}>
+              {/* PERBAIKAN: Indikator Cocok/Tidak Cocok dengan animasi max-h */}
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${confirmValue.length > 0 ? 'max-h-10 opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'}`}>
+                <p className={`text-xs font-medium pl-1 ${passwordValue === confirmValue ? 'text-green-600' : 'text-red-500'}`}>
                   {passwordValue === confirmValue ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok dengan input sebelumnya'}
                 </p>
-              )}
+              </div>
+              
               {errors.konfirmasi && <p className="text-red-500 text-xs font-medium pl-1">{errors.konfirmasi.message}</p>}
             </div>
 

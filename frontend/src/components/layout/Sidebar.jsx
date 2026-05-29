@@ -36,6 +36,18 @@ const menu = [
       </svg>
     ),
   },
+  // TAMBAHAN BARU: Menu Tanya AI
+  {
+    to: '/tanya-ai',
+    label: 'Tanya AI',
+    desc: 'Asisten Bisnis',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        <path d="m10 7 2 4 4 2-4 2-2 4-2-4-4-2 4-2Z"></path>
+      </svg>
+    ),
+  },
 ]
 
 export default function Sidebar({ isMobileOpen, onClose }) {
@@ -64,7 +76,7 @@ export default function Sidebar({ isMobileOpen, onClose }) {
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
         style={{
-          width: isMobileOpen ? 200 : (isCollapsed ? 88 : 220), /* Lebar HP diubah ke 200 */
+          width: isMobileOpen ? 200 : (isCollapsed ? 88 : 220), 
           background: sidebarBg,
           borderRight: `1px solid ${borderColor}`,
           height: 'calc(100dvh - 64px)', 

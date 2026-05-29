@@ -10,6 +10,7 @@ import Dashboard     from './pages/Dashboard'
 import Laporan       from './pages/Laporan'
 import EditProfil    from './pages/EditProfil'
 import Pengaturan    from './pages/Pengaturan'
+import TanyaAI       from './pages/TanyaAI' // <-- TAMBAHAN BARU
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -31,6 +32,10 @@ export default function App() {
             <Route path="/konfirmasi"  element={<ProtectedRoute><Konfirmasi /></ProtectedRoute>} />
             <Route path="/dashboard"   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/laporan"     element={<ProtectedRoute><Laporan /></ProtectedRoute>} />
+            
+            {/* TAMBAHAN BARU: Route untuk halaman Tanya AI */}
+            <Route path="/tanya-ai"    element={<ProtectedRoute><TanyaAI /></ProtectedRoute>} />
+            
             <Route path="/profil"      element={<ProtectedRoute><EditProfil /></ProtectedRoute>} />
             <Route path="/pengaturan"  element={<ProtectedRoute><Pengaturan /></ProtectedRoute>} />
             <Route path="*"            element={<Navigate to="/login" replace />} />
