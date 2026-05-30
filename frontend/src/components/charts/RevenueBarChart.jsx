@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
@@ -19,7 +19,7 @@ function CustomTooltip({ active, payload, label, isDark, bulan }) {
   if (!active || !payload?.length) return null
   const val = payload[0].value
   const display = val >= 1000000
-    ? `Rp ${(val / 1000000).toFixed(1)} Juta`
+    ? `Rp ${(val / 1000000).toFixed(1).replace('.0', '')} Juta`
     : formatRupiah(val)
   return (
     <div style={{
@@ -41,7 +41,9 @@ function CustomTooltip({ active, payload, label, isDark, bulan }) {
 
 function CustomDot(props) {
   const { cx, cy, payload, maxVal, isDark } = props
-  const isMax = payload.total === maxVal
+  // Pastikan maxVal > 0 agar dot tidak membesar di grafik kosong
+  const isMax = payload.total === maxVal && maxVal > 0 
+  
   if (!isMax) return (
     <circle cx={cx} cy={cy} r={4}
       fill={isDark ? '#0f172a' : '#fff'}
@@ -63,10 +65,47 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
   const isDark    = theme === 'dark'
   const [offset, setOffset] = useState(0)
 
-  const totalPages  = Math.ceil(data.length / PAGE_SIZE)
+  // 1. BUAT DATA DINAMIS FULL 1 BULAN
+  const daysInMonth = new Date(tahun, bulan, 0).getDate()
+  const fullData = Array.from({ length: daysInMonth }, (_, i) => {
+    const tgl = String(i + 1)
+    const found = data.find(d => String(d.tanggal) === tgl)
+    return {
+      tanggal: tgl,
+      total: found ? found.total : 0,
+    }
+  })
+
+  // =====================================================================
+  // FOKUS PERBAIKAN: Hitung batas atas Sumbu Y secara global & statis
+  // =====================================================================
+  // Cari nilai tertinggi dari seluruh bulan, BUKAN per 7 hari
+  const globalMax = Math.max(...fullData.map(d => d.total), 0)
+  
+  // Patokan awal 250rb. Jika pendapatan melewati batas ini, 
+  // naikkan skalanya dengan kelipatan 2 (500rb, 1jt, 2jt, dst)
+  let yAxisMax = 250000 
+  while (globalMax > yAxisMax * 0.85) { // 0.85 agar grafik tidak sampai nyentuh atap
+    yAxisMax *= 2 
+  }
+  // =====================================================================
+
+  // 2. AUTO-ARAHKAN KE HALAMAN TERAKHIR YANG ADA DATANYA
+  useEffect(() => {
+    if (data && data.length > 0) {
+      const lastTransactionDay = Math.max(...data.map(d => Number(d.tanggal)))
+      const targetPage = Math.floor((lastTransactionDay - 1) / PAGE_SIZE)
+      setOffset(targetPage * PAGE_SIZE)
+    } else {
+      setOffset(0)
+    }
+  }, [data, bulan, tahun])
+
+  const totalPages  = Math.ceil(fullData.length / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE)
 
-  const visibleData = data.slice(offset, offset + PAGE_SIZE).map(d => ({
+  // 3. AMBIL DATA UNTUK HALAMAN SAAT INI (PAGINATION)
+  const visibleData = fullData.slice(offset, offset + PAGE_SIZE).map(d => ({
     ...d,
     hari: getNamaHari(d.tanggal, bulan, tahun),
   }))
@@ -89,17 +128,19 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
   const txtMut    = isDark ? '#cbd5e1' : '#047857'
 
   function fmt(v) {
-    if (v >= 1000000) return `${(v / 1000000).toFixed(1)}jt`
-    if (v >= 1000)    return `${(v / 1000).toFixed(0)}rb`
+    if (v === 0) return '0'
+    if (v >= 1000000) return `${Number((v / 1000000).toFixed(1))}jt`
+    if (v >= 1000)    return `${Math.floor(v / 1000)}rb`
     return `${v}`
   }
 
   function fmtRing(v) {
     return v >= 1000000
-      ? `Rp ${(v / 1000000).toFixed(1)} Juta`
+      ? `Rp ${(v / 1000000).toFixed(1).replace('.0', '')} Juta`
       : formatRupiah(v)
   }
 
+  // Jika tidak ada data transaksi sama sekali di bulan tersebut
   if (!data.length) {
     return (
       <div className="flex flex-col items-center justify-center h-52 gap-3">
@@ -118,14 +159,12 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
     }}>
       <div style={{ background: headGrad }} className="px-3 py-3 sm:px-5 sm:py-4">
         
-        {/* HEADER GRAFIK DIPERBAIKI: Fleksibel, menyatu di HP agar tidak turun ke bawah bertumpuk */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3 w-full">
           <p className="text-[13px] sm:text-base font-black shrink-0" style={{ color: txt, letterSpacing: '-0.3px' }}>
             PEMASUKAN HARIAN
           </p>
 
           <div className="flex flex-row items-center justify-between gap-2 w-full md:w-auto overflow-hidden">
-            {/* Box Periode */}
             <div className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border truncate" style={{
               background: isDark ? 'rgba(30,41,59,0.8)' : 'rgba(255,255,255,0.85)',
               borderColor: isDark ? '#475569' : '#6ee7b7'
@@ -137,7 +176,6 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               </span>
             </div>
 
-            {/* Pagination Controls */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 onClick={() => setOffset(o => Math.max(0, o - PAGE_SIZE))}
@@ -167,14 +205,14 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               </div>
 
               <button
-                onClick={() => { if (offset + PAGE_SIZE < data.length) setOffset(o => o + PAGE_SIZE) }}
-                disabled={offset + PAGE_SIZE >= data.length}
+                onClick={() => { if (offset + PAGE_SIZE < fullData.length) setOffset(o => o + PAGE_SIZE) }}
+                disabled={offset + PAGE_SIZE >= fullData.length}
                 className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border-[1.5px] text-base sm:text-lg font-black transition-all"
                 style={{
                   background: isDark ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.8)',
                   borderColor: isDark ? '#334155' : '#6ee7b7',
-                  color: offset + PAGE_SIZE >= data.length ? (isDark ? '#475569' : '#a7f3d0') : (isDark ? '#4ade80' : '#065f46'),
-                  cursor: offset + PAGE_SIZE >= data.length ? 'not-allowed' : 'pointer',
+                  color: offset + PAGE_SIZE >= fullData.length ? (isDark ? '#475569' : '#a7f3d0') : (isDark ? '#4ade80' : '#065f46'),
+                  cursor: offset + PAGE_SIZE >= fullData.length ? 'not-allowed' : 'pointer',
                 }}
               >›</button>
             </div>
@@ -227,10 +265,13 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               }}
             />
 
+            {/* FOKUS PERBAIKAN: Menggunakan domain yAxisMax & tickCount agar rapi */}
             <YAxis
               tickFormatter={fmt}
               tick={{ fontSize: 10, fill: axisColor, fontWeight: 600 }}
               tickLine={false} axisLine={false} width={40}
+              domain={[0, yAxisMax]}
+              tickCount={6}
             />
 
             <Tooltip
