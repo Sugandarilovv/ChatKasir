@@ -52,7 +52,7 @@ Aplikasi antarmuka ini dirakit dengan Streamlit dan dapat diakses publik melalui
 Jalankan perintah ini di dalam terminal untuk menyalakan server analitik pada mesin Anda:
   1. Tarik kode sumber:
      
-     git clone [https://github.com/username-anda/nama-repo.git]((https://github.com/reihanersaa/ChatKasir.git))
+     git clone https://github.com/reihanersaa/ChatKasir.git
   2. Pasang pustaka pendukung:
      
      pip install -r requirements.txt
