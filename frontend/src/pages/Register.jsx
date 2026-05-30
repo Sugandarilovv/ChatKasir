@@ -15,12 +15,10 @@ const FITUR = [
 export default function Register() {
   const { loading, handleRegister } = useAuth()
   
-  // Mengambil setValue dan watch untuk fitur password
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm()
   const [showPass, setShowPass]   = useState(false)
   const [showPass2, setShowPass2] = useState(false)
 
-  // Memantau inputan secara real-time
   const passwordValue = watch('password') || ''
   const confirmValue  = watch('konfirmasi') || ''
   const strength = getStrength(passwordValue)
@@ -29,7 +27,6 @@ export default function Register() {
     handleRegister(data.nama, data.email, data.password) 
   }
 
-  // Generate password super kuat (Kombinasi Huruf, Angka, dan Simbol)
   function generateStrongPassword() {
     const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const numbers = "0123456789"
@@ -37,20 +34,16 @@ export default function Register() {
     const all = letters + numbers + symbols
     
     let pass = ""
-    // Wajib ada 1 huruf, 1 angka, 1 simbol agar langsung masuk kategori KUAT
     pass += letters[Math.floor(Math.random() * letters.length)]
     pass += numbers[Math.floor(Math.random() * numbers.length)]
     pass += symbols[Math.floor(Math.random() * symbols.length)]
     
-    // Tambah sisa 9 karakter acak
     for (let i = 0; i < 9; i++) {
       pass += all[Math.floor(Math.random() * all.length)]
     }
     
-    // Acak urutan
     pass = pass.split('').sort(() => 0.5 - Math.random()).join('')
     
-    // Masukkan ke input otomatis
     setValue('password', pass, { shouldValidate: true })
     setValue('konfirmasi', pass, { shouldValidate: true })
     
@@ -64,8 +57,8 @@ export default function Register() {
   return (
     <div className="flex flex-col lg:flex-row min-h-dvh font-sans w-full">
       
-      {/* Sisi Kiri (Tampilan Asli Dipertahankan 100%) */}
-      <div className="flex flex-col w-full lg:w-5/12 xl:w-120 shrink-0 relative bg-green-950 overflow-hidden">
+      {/* Sisi Kiri (Terkunci Sempurna) */}
+      <div className="flex flex-col w-full lg:w-5/12 xl:w-120 shrink-0 relative lg:sticky lg:top-0 lg:h-dvh bg-green-950 overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-green-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
 
@@ -125,7 +118,7 @@ export default function Register() {
               {errors.email && <p className="text-red-500 text-xs font-medium pl-1">{errors.email.message}</p>}
             </div>
 
-            {/* FOKUS PERUBAHAN: Input Password */}
+            {/* AREA PASSWORD */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-end">
                 <label className="text-sm font-semibold text-gray-700">Password</label>
@@ -142,25 +135,32 @@ export default function Register() {
                 </button>
               </div>
               
-              {/* PERBAIKAN: Indikator Tiga Tingkat dengan animasi max-h untuk mencegah scroll lompat */}
-              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${passwordValue.length > 0 ? 'max-h-16 opacity-100 mt-1.5' : 'max-h-0 opacity-0 mt-0'}`}>
-                <div className="space-y-1">
-                  <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden">
-                    {[1, 2, 3].map((level) => (
-                      <div key={level} className={`h-full flex-1 transition-all duration-300 ${strength >= level ? STRENGTH_COLORS[strength] : 'bg-green-200/40'}`} />
-                    ))}
+              {/* === KOMENTAR PERBAIKAN 1 === */}
+              {/* Class "h-5" diubah menjadi "h-2". Ini memangkas ruang transparan di bawah form password, 
+                  sehingga form konfirmasi di bawahnya otomatis tertarik ke atas. */}
+              <div className="h-2 mt-1 relative z-10">
+                <div className={`absolute w-full transition-all duration-300 ease-in-out ${passwordValue.length > 0 ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex gap-1 h-1 w-full rounded-full overflow-hidden">
+                      {[1, 2, 3].map((level) => (
+                        <div key={level} className={`h-full flex-1 transition-all duration-300 ${strength >= level ? STRENGTH_COLORS[strength] : 'bg-green-200/40'}`} />
+                      ))}
+                    </div>
+                    <p className={`text-[11px] leading-none font-medium pl-0.5 ${strength === 1 ? 'text-red-500' : strength === 2 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      Kekuatan: {STRENGTH_LABELS[strength]}
+                    </p>
                   </div>
-                  <p className={`text-xs font-medium ${strength === 1 ? 'text-red-500' : strength === 2 ? 'text-yellow-600' : 'text-green-600'}`}>
-                    Kekuatan: {STRENGTH_LABELS[strength]}
-                  </p>
                 </div>
               </div>
               
               {errors.password && <p className="text-red-500 text-xs font-medium pl-1">{errors.password.message}</p>}
             </div>
 
-            {/* FOKUS PERUBAHAN: Konfirmasi Password */}
-            <div className="space-y-1.5 pt-1">
+            {/* AREA KONFIRMASI PASSWORD */}
+            {/* === KOMENTAR PERBAIKAN 2 === */}
+            {/* Saya tambahkan class "-mt-1" (margin-top negatif) di sini untuk melawan jarak bawaan 
+                dari form. Efeknya, input Ulangi Password akan melangkah naik mendekati indikator di atasnya. */}
+            <div className="space-y-1.5 -mt-1 relative z-20">
               <label className="text-sm font-semibold text-gray-700">Ulangi Password</label>
               <div className="relative">
                 <input type={showPass2 ? 'text' : 'password'} placeholder="Ketik ulang password"
@@ -171,11 +171,13 @@ export default function Register() {
                 </button>
               </div>
 
-              {/* PERBAIKAN: Indikator Cocok/Tidak Cocok dengan animasi max-h */}
-              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${confirmValue.length > 0 ? 'max-h-10 opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'}`}>
-                <p className={`text-xs font-medium pl-1 ${passwordValue === confirmValue ? 'text-green-600' : 'text-red-500'}`}>
-                  {passwordValue === confirmValue ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok dengan input sebelumnya'}
-                </p>
+              {/* Ruang statis dikecilkan menjadi h-3 */}
+              <div className="h-3 mt-1 relative z-10">
+                <div className={`absolute w-full transition-all duration-300 ease-in-out ${confirmValue.length > 0 ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                  <p className={`text-[11px] leading-none font-medium pl-1 ${passwordValue === confirmValue ? 'text-green-600' : 'text-red-500'}`}>
+                    {passwordValue === confirmValue ? '✓ Kata sandi cocok' : '✗ Kata sandi tidak cocok dengan input sebelumnya'}
+                  </p>
+                </div>
               </div>
               
               {errors.konfirmasi && <p className="text-red-500 text-xs font-medium pl-1">{errors.konfirmasi.message}</p>}
@@ -215,12 +217,11 @@ function getStrength(pass) {
   const hasNumber = /[0-9]/.test(pass)
   const hasSymbol = /[^a-zA-Z0-9]/.test(pass)
 
-  // Menghitung berapa tipe kombinasi yang dipakai user
   const typesCount = (hasLetter ? 1 : 0) + (hasNumber ? 1 : 0) + (hasSymbol ? 1 : 0)
 
-  if (typesCount === 1) return 1 // Lemah (Hanya 1 tipe: huruf aja / angka aja / simbol aja)
-  if (typesCount === 2) return 2 // Sedang (Kombinasi 2 tipe)
-  if (typesCount === 3) return 3 // Kuat (Kombinasi 3 tipe)
+  if (typesCount === 1) return 1 
+  if (typesCount === 2) return 2 
+  if (typesCount === 3) return 3 
   
   return 0
 }
