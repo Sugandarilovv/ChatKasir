@@ -15,12 +15,29 @@ function getNamaHari(tanggal, bulan, tahun) {
   return HARI[d.getDay()]
 }
 
+// FORMATTER: Memotong desimal agar rapi (cth: 1.34jt jadi 1.3jt)
+function truncate1Dec(val) {
+  const num = Math.floor(val / 100000) / 10
+  return num.toFixed(1).replace(/\.0$/, '')
+}
+
+function fmt(v) {
+  if (v === 0) return '0'
+  if (v >= 1000000) return `${truncate1Dec(v)}jt`
+  if (v >= 1000)    return `${Math.round(v / 1000)}rb`
+  return `${v}`
+}
+
+function fmtRing(v) {
+  if (v >= 1000000) return `Rp ${truncate1Dec(v)} Juta`
+  return formatRupiah(v)
+}
+
 function CustomTooltip({ active, payload, label, isDark, bulan }) {
   if (!active || !payload?.length) return null
   const val = payload[0].value
-  const display = val >= 1000000
-    ? `Rp ${(val / 1000000).toFixed(1).replace('.0', '')} Juta`
-    : formatRupiah(val)
+  const display = fmtRing(val)
+  
   return (
     <div style={{
       background: isDark ? '#1e293b' : '#ffffff',
@@ -41,7 +58,6 @@ function CustomTooltip({ active, payload, label, isDark, bulan }) {
 
 function CustomDot(props) {
   const { cx, cy, payload, maxVal, isDark } = props
-  // Pastikan maxVal > 0 agar dot tidak membesar di grafik kosong
   const isMax = payload.total === maxVal && maxVal > 0 
   
   if (!isMax) return (
@@ -72,23 +88,9 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
     const found = data.find(d => String(d.tanggal) === tgl)
     return {
       tanggal: tgl,
-      total: found ? found.total : 0,
+      total: found ? found.total : 0, 
     }
   })
-
-  // =====================================================================
-  // FOKUS PERBAIKAN: Hitung batas atas Sumbu Y secara global & statis
-  // =====================================================================
-  // Cari nilai tertinggi dari seluruh bulan, BUKAN per 7 hari
-  const globalMax = Math.max(...fullData.map(d => d.total), 0)
-  
-  // Patokan awal 250rb. Jika pendapatan melewati batas ini, 
-  // naikkan skalanya dengan kelipatan 2 (500rb, 1jt, 2jt, dst)
-  let yAxisMax = 250000 
-  while (globalMax > yAxisMax * 0.85) { // 0.85 agar grafik tidak sampai nyentuh atap
-    yAxisMax *= 2 
-  }
-  // =====================================================================
 
   // 2. AUTO-ARAHKAN KE HALAMAN TERAKHIR YANG ADA DATANYA
   useEffect(() => {
@@ -104,14 +106,34 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
   const totalPages  = Math.ceil(fullData.length / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE)
 
-  // 3. AMBIL DATA UNTUK HALAMAN SAAT INI (PAGINATION)
+  // 3. AMBIL DATA UNTUK HALAMAN SAAT INI
   const visibleData = fullData.slice(offset, offset + PAGE_SIZE).map(d => ({
     ...d,
     hari: getNamaHari(d.tanggal, bulan, tahun),
   }))
 
-  const maxVal   = Math.max(...visibleData.map(d => d.total), 1)
-  const totalPg  = visibleData.reduce((s, d) => s + d.total, 0)
+  const maxVal  = Math.max(...visibleData.map(d => d.total), 0)
+  const totalPg = visibleData.reduce((s, d) => s + d.total, 0)
+
+  // =====================================================================
+  // FOKUS PERBAIKAN: Memaksa garis Y sejajar lurus dengan nilai pemasukan
+  // =====================================================================
+  // Ambil semua nominal pemasukan harian yang ada di tampilan saat ini
+  let yTicks = visibleData
+    .map(d => d.total)
+    .filter((v, i, arr) => arr.indexOf(v) === i) // Hapus angka yang kembar/duplikat
+    
+  // Pastikan angka 0 selalu ada di urutan paling bawah
+  if (!yTicks.includes(0)) {
+    yTicks.push(0)
+  }
+  
+  // Urutkan angka dari yang terkecil ke terbesar
+  yTicks.sort((a, b) => a - b)
+
+  // Berikan sedikit ruang kosong di bagian atas (+15%) agar titik tertinggi tidak menabrak atap grafik
+  const yDomainMax = maxVal > 0 ? maxVal * 1.15 : 100000
+  // =====================================================================
 
   const startDay = visibleData[0]?.tanggal || ''
   const endDay   = visibleData[visibleData.length - 1]?.tanggal || ''
@@ -127,20 +149,6 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
   const txt       = isDark ? '#f8fafc' : '#065f46'
   const txtMut    = isDark ? '#cbd5e1' : '#047857'
 
-  function fmt(v) {
-    if (v === 0) return '0'
-    if (v >= 1000000) return `${Number((v / 1000000).toFixed(1))}jt`
-    if (v >= 1000)    return `${Math.floor(v / 1000)}rb`
-    return `${v}`
-  }
-
-  function fmtRing(v) {
-    return v >= 1000000
-      ? `Rp ${(v / 1000000).toFixed(1).replace('.0', '')} Juta`
-      : formatRupiah(v)
-  }
-
-  // Jika tidak ada data transaksi sama sekali di bulan tersebut
   if (!data.length) {
     return (
       <div className="flex flex-col items-center justify-center h-52 gap-3">
@@ -229,7 +237,7 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
 
       <div style={{ background: cardBg }} className="p-2 sm:p-5">
         <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={visibleData} margin={{ top: 16, right: 10, left: -15, bottom: 8 }}>
+          <AreaChart data={visibleData} margin={{ top: 16, right: 15, left: 0, bottom: 8 }}>
             <defs>
               <linearGradient id="areaLight" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor="#10b981" stopOpacity={0.35}/>
@@ -265,13 +273,15 @@ export default function RevenueBarChart({ data = [], bulan = 1, tahun = 2026 }) 
               }}
             />
 
-            {/* FOKUS PERBAIKAN: Menggunakan domain yAxisMax & tickCount agar rapi */}
+            {/* Sumbu Y kini menggunakan nilai absolut dari yTicks */}
             <YAxis
               tickFormatter={fmt}
               tick={{ fontSize: 10, fill: axisColor, fontWeight: 600 }}
-              tickLine={false} axisLine={false} width={40}
-              domain={[0, yAxisMax]}
-              tickCount={6}
+              tickLine={false} 
+              axisLine={false} 
+              width={50}
+              domain={[0, yDomainMax]}
+              ticks={yTicks}
             />
 
             <Tooltip
