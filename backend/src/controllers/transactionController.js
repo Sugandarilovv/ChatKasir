@@ -1,6 +1,6 @@
 const { supabase } = require("../config/supabase");
 
-// 1. Fungsi Panggil AI
+// fungsi manggil AI
 const callAIExtract = async (text) => {
   try {
     // coba health check — tanpa API key
@@ -44,7 +44,6 @@ const callAIExtract = async (text) => {
     const data = await response.json();
     console.log("Response dari AI:", JSON.stringify(data));
 
-    // Mapping ke struktur baru dari AI (results & subtotal)
     const results = (data.results || []).map((item) => ({
       product_name: item.product_name,
       quantity: item.quantity,
@@ -70,7 +69,7 @@ const callAIExtract = async (text) => {
   }
 };
 
-// 2. POST /transactions/analyze - buat analisa AI
+// POST /transactions/analyze - buat analisa AI
 const analyzeTransaction = async (req, res) => {
   const { raw_text } = req.body;
   const user_id = req.user.id;
@@ -116,7 +115,7 @@ const analyzeTransaction = async (req, res) => {
   });
 };
 
-// 3. POST /transactions — tuk menyimpan data permanen
+// POST /transactions — tuk menyimpan data permanen
 const createTransaction = async (req, res) => {
   const user_id = req.user.id;
   const { extraction_id, products } = req.body;
@@ -137,7 +136,6 @@ const createTransaction = async (req, res) => {
       product_name: item.product_name,
       quantity: item.quantity,
       price_satuan: item.price_satuan,
-      // Support subtotal (dari AI baru) atau total (dari format lama) supaya aman di DB
       total: item.subtotal || item.total,
       confidence: item.confidence || "HIGH",
       is_manual: item.is_manual || false,
@@ -164,7 +162,7 @@ const createTransaction = async (req, res) => {
   }
 };
 
-// 4. GET /transactions (dengan filter & paginasi)
+// GET /transactions (dengan filter & paginasi)
 const getTransactions = async (req, res) => {
   const user_id = req.user.id;
   const { startDate, endDate, page = 1, limit = 10 } = req.query;
@@ -204,7 +202,7 @@ const getTransactions = async (req, res) => {
   }
 };
 
-// 5. GET /transactions/report — utk suplai data ke dashboard frontend
+// GET /transactions/report — utk suplai data ke dashboard frontend
 const getDashboardReport = async (req, res) => {
   const user_id = req.user.id;
   const { startDate, endDate } = req.query;
