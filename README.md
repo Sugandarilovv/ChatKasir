@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 # 🧾 ChatKasir - Asisten Kasir Cerdas Berbasis AI
 
 ![ChatKasir Banner](frontend/public/logo.png) 
@@ -180,3 +182,4 @@ Proyek ini dibangun secara kolaboratif sebagai bagian dari program **Coding Camp
 ---
 
 **© 2026 ChatKasir Team.** Dilisensikan di bawah MIT License.
+>>>>>>> develop
