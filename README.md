@@ -1,169 +1,182 @@
-# DS1-Data — Muhammad Faradi Eka Damara
+# 🧾 ChatKasir - Asisten Kasir Cerdas Berbasis AI
 
-Dataset dan pipeline data engineering untuk proyek **ChatKasir** — sistem NLP berbasis kasir warung makan yang mampu mengekstrak entitas pesanan (produk, kuantitas, harga) dari percakapan chat berbahasa Indonesia sehari-hari.
+![ChatKasir Banner](frontend/public/logo.png) 
 
----
+**ChatKasir** adalah sistem aplikasi pencatatan transaksi kasir cerdas yang dirancang khusus untuk UMKM Indonesia. Aplikasi ini memanfaatkan **Artificial Intelligence (AI) - Named Entity Recognition (NER)** untuk membaca, mengekstrak, dan menghitung pesanan secara otomatis langsung dari teks obrolan (seperti dari WhatsApp).
 
-## Struktur Direktori
-
-```
-data/
-├── raw/                        # Dataset mentah dari sumber eksternal
-│   ├── food_gofood_raw.csv         # Data makanan dari GoFood (Kaggle)
-│   ├── food_indonesian_raw.csv     # Data makanan Indonesia (HuggingFace)
-│   ├── slang_indonesia_raw.csv     # Kamus slang Indonesia (HuggingFace)
-│   └── slang_theonlydo_raw.csv     # Kamus slang alternatif (HuggingFace)
-│
-├── final/                      # Dataset bersih siap pakai
-│   ├── food_utama.csv              # 18.558 nama makanan/minuman baku
-│   ├── slang_utama.csv             # 1.231 pasangan slang ↔ formal
-│   └── chatkasir_synthetic.csv     # 100.000 data sintetis percakapan kasir
-│
-├── data-dictionary/            # Dokumentasi skema kolom
-│   ├── data_dictionary_food.csv
-│   ├── data_dictionary_slang.csv
-│   └── data_dictionary_synthetic.csv
-│
-├── scripts/                    # Script eksplorasi & asesmen kualitas data
-│   ├── explore_food.py
-│   ├── explore_slang.py
-│   ├── assessing_food.py
-│   ├── assessing_slang.py
-│   ├── assessing_synthetic.py
-│   ├── generate_data_dictionary.py
-│   └── laporan_kualitas_data.ipynb
-│
-└── script-based/               # Script generasi data & analisis ringkasan
-    ├── generate_data.py            # Generator utama data sintetis (rule-based)
-    ├── analisis_dataset.py         # Analisis statistik dataset
-    ├── analisis_ringkasan.csv      # Ringkasan statistik hasil generate
-    ├── analisis_top100_chatkasir.csv
-    └── chatkasir_synthetic.csv     # Salinan dataset untuk analisis
-```
+Selain itu, ChatKasir dilengkapi dengan asisten chatbot **TanyaAI** (berbasis Google Gemini) untuk mengedukasi pemilik UMKM seputar bisnis, serta **Dashboard Analitik** untuk memantau performa penjualan.
 
 ---
 
-## Dataset
+## ✨ Fitur Utama
 
-### `food_utama.csv`
-Daftar nama makanan dan minuman Indonesia dalam huruf kecil.
-
-| Kolom | Tipe | Jumlah Baris | Deskripsi |
-|-------|------|-------------|-----------|
-| `name` | string | 18.558 | Nama makanan/minuman, panjang 1–5 kata |
-
-**Sumber:** Gabungan dari [eriko-syah/indonesian-food](https://huggingface.co/datasets/eriko-syah/indonesian-food) (HuggingFace) dan [ariqsyahalam/indonesia-food-delivery-gofood-product-list](https://www.kaggle.com/datasets/ariqsyahalam/indonesia-food-delivery-gofood-product-list) (Kaggle).
+1. **AI Order Extraction**: Salin teks chat pembeli, dan AI akan otomatis mengekstrak _Nama Produk, Kuantitas, dan Harga_, lalu menghitung totalnya.
+2. **Smart Fallback & Confidence Score**: Sistem mendeteksi otomatis jika AI kurang yakin (Confidence: LOW/MEDIUM) atau jika ada harga yang tidak disebutkan di chat, untuk dikonfirmasi ulang oleh kasir.
+3. **TanyaAI (Asisten Bisnis UMKM)**: Chatbot terintegrasi berbasis Gemini 1.5 Flash yang dibatasi khusus untuk menjawab seputar strategi bisnis, keuangan, dan UMKM.
+4. **Dashboard Analitik (Data Science)**: Visualisasi tren penjualan, performa produk, dan segmentasi harga menggunakan Streamlit.
+5. **Aman & Cepat**: Arsitektur dipisah antara Frontend, Backend (Proxy), dan API AI agar rahasia kunci API dan keandalan sistem tetap terjaga.
 
 ---
 
-### `slang_utama.csv`
-Kamus normalisasi teks: pasangan kata slang/singkatan dengan bentuk formalnya.
+## 🏗️ Arsitektur Sistem & Struktur Repositori
 
-| Kolom | Tipe | Jumlah Baris | Deskripsi |
-|-------|------|-------------|-----------|
-| `slang` | string | 1.231 | Kata slang/singkatan chat WhatsApp, semua huruf kecil |
-| `formal` | string | 1.231 | Bentuk baku dari kata slang (552 nilai unik) |
+Proyek ini dibangun menggunakan arsitektur *microservices* dengan pembagian direktori sebagai berikut:
 
-**Sumber:** Gabungan dari [nahiar/indonesia-slang](https://huggingface.co/datasets/nahiar/indonesia-slang) dan [theonlydo/indonesia-slang](https://huggingface.co/datasets/theonlydo/indonesia-slang) (HuggingFace).
-
-**Kegunaan:** Dipakai oleh AI-2 (Denny) sebagai kamus normalisasi teks sebelum diproses model NER.
-
----
-
-### `chatkasir_synthetic.csv`
-Dataset utama: 100.000 percakapan sintetis antara pembeli dan penjual warung makan, dilabeli untuk task Named Entity Recognition (NER).
-
-| Kolom | Tipe | Jumlah Baris | Deskripsi |
-|-------|------|-------------|-----------|
-| `input_text` | string | 100.000 | Teks percakapan `<pembeli> [SEP] <penjual>` |
-| `product` | string | 100.000 | Nama produk yang dipesan (target NER) |
-| `quantity` | string | 100.000 | Jumlah pesanan (angka atau satuan string) |
-| `price_satuan` | integer | 100.000 | Harga satuan dalam rupiah; `-1` = tidak disebutkan |
-| `pattern` | integer | 100.000 | Pola kalimat yang digunakan (1–4) |
-
-**Format `input_text`:**
-```
-<teks_pembeli> [SEP] <teks_penjual>
-```
-Baris tanpa token `[SEP]` berarti pesanan tanpa konfirmasi harga dari penjual.
-
-**Pola Kalimat (`pattern`):**
-
-| Pattern | Deskripsi |
-|---------|-----------|
-| 1 | Satu produk, template standar QTY-di-depan dengan konfirmasi harga penjual |
-| 2 | Satu produk, template PRODUK-di-depan atau variasi kasual (`buatin`, `bungkusin`, `nitip`) |
-| 3 | Input mengandung slang dan typo berat (`apply_slang`), label tetap baku |
-| 4 | Pesanan majemuk 2 produk sekaligus; `product` = `"produk1 & produk2"`, `price_satuan` = `-1` |
-
-**Statistik Dataset:**
-
-| Metrik | Nilai |
-|--------|-------|
-| Total baris | 100.000 |
-| Pattern 1 | 31.017 (31%) |
-| Pattern 2 | 31.183 (31,2%) |
-| Pattern 3 (slang) | 17.800 (17,8%) |
-| Pattern 4 (majemuk) | 20.000 (20%) |
-| Baris tanpa harga (`price_satuan = -1`) | 33.930 (33,9%) |
-| Baris dengan harga | 66.070 (66,1%) |
-| Produk unik yang ter-generate | 1.000 dari 18.558 |
-| QTY format angka | 40.046 |
-| QTY format ejaan string | 39.954 |
-
-**Distribusi harga:**
-- 50% harga kecil (Rp 5.000 – Rp 99.000)
-- 35% harga menengah (Rp 100.000 – Rp 999.000)
-- 15% harga besar (Rp 1.000.000 – Rp 50.000.000) — mencakup katering & pesanan besar
+- 📂 **`frontend/`** — Antarmuka Web (UI) menggunakan **React, Vite, & Tailwind CSS v4**.
+- 📂 **`backend/`** — Server REST API menggunakan **Node.js & Express**. Terhubung dengan **Supabase (PostgreSQL)** untuk database & autentikasi, serta bertindak sebagai _proxy_ aman untuk Gemini API.
+- 📂 **`api-inference/`** — Server AI menggunakan **Python & FastAPI**. Bertugas memuat model AI (Keras) dan mengekstrak entitas dari teks. (Didesain untuk di-deploy ke Hugging Face Spaces).
+- 📂 **`ai-model/`** — Ruang kerja Data Scientist. Berisi Jupyter Notebooks untuk proses _Training_, _Evaluation_, dan arsitektur model Neural Network.
+- 📂 **`dashboard/`** — Dashboard analitik interaktif menggunakan **Streamlit** untuk visualisasi dataset dan simulasi model.
+- 📂 **`data/`** & 📂 **`docs/`** — Berisi pipeline pengolahan data mentah/sintetis dan dokumen referensi seperti API Contract, Skema Database, dan Postman Collection.
 
 ---
 
-## Pipeline Data
+## 🛠️ Teknologi yang Digunakan
+
+* **Frontend**: React, Vite, Tailwind CSS, Axios, React-Markdown.
+* **Backend**: Node.js, Express, Supabase JS Client, Google Generative AI SDK (Gemini).
+* **AI & Data Science**: Python, TensorFlow/Keras, FastAPI, Streamlit, Pandas, Scikit-Learn.
+* **Database & Auth**: Supabase (PostgreSQL).
+* **Deployment**: Vercel (Frontend & Backend), Hugging Face Spaces (API Inference).
+
+---
+
+## 🚀 Cara Menjalankan Proyek Secara Lokal
+
+Karena proyek ini bersifat modular, Anda harus menjalankan _Frontend_, _Backend_, dan _API Inference_ secara terpisah.
+
+### Persyaratan Awal (Prerequisites)
+- [Node.js](https://nodejs.org/) (v18 atau terbaru)
+- [Python](https://www.python.org/) (v3.9 atau terbaru)
+- Akun [Supabase](https://supabase.com/) (Untuk Database & Auth)
+- Akun [Google AI Studio](https://aistudio.google.com/) (Untuk Gemini API Key)
+
+### 1. Setup Backend (Node.js)
+```bash
+cd backend
+npm install
 
 ```
-raw/ ──► scripts/explore_*.py ──► scripts/assessing_*.py
-                                         │
-                                         ▼
-                                    final/food_utama.csv
-                                    final/slang_utama.csv
-                                         │
-                                         ▼
-                              script-based/generate_data.py
-                                         │
-                                         ▼
-                              final/chatkasir_synthetic.csv (100.000 baris)
+
+Buat file `.env` di folder `backend/` (lihat `backend/.env.example`) dan isi:
+
+```env
+PORT=3000
+SUPABASE_URL=url_supabase_anda
+SUPABASE_ANON_KEY=key_supabase_anda
+GEMINI_API_KEY=key_gemini_anda
+FRONTEND_URL=http://localhost:5173
+
+```
+
+Jalankan server:
+
+```bash
+npm run dev
+# Backend berjalan di http://localhost:3000
+
+```
+
+### 2. Setup API Inference (Python/FastAPI)
+
+```bash
+cd api-inference
+# Disarankan menggunakan virtual environment (venv)
+python -m venv venv
+source venv/bin/activate  # Untuk Windows: venv\Scripts\activate
+
+pip install -r requirements.txt
+
+```
+
+Buat file `.env` di folder `api-inference/` (lihat `api-inference/.env.example`) dan atur `API_KEY` untuk pengamanan endpoint:
+
+```env
+API_KEY=rahasia123
+
+```
+
+Jalankan server AI:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+# API AI berjalan di http://localhost:8000
+
+```
+
+### 3. Setup Frontend (React/Vite)
+
+```bash
+cd frontend
+npm install
+
+```
+
+Buat file `.env` di folder `frontend/` (lihat `frontend/.env.example`):
+
+```env
+VITE_API_URL=http://localhost:3000
+VITE_AI_INFERENCE_URL=http://localhost:8000
+VITE_AI_API_KEY=rahasia123
+
+```
+
+Jalankan frontend:
+
+```bash
+npm run dev
+# Frontend berjalan di http://localhost:5173
+
 ```
 
 ---
 
-## Scripts
+## 📊 Cara Menjalankan Dashboard Analitik (Streamlit)
 
-| Script | Deskripsi |
-|--------|-----------|
-| `scripts/explore_food.py` | Eksplorasi awal dataset makanan mentah |
-| `scripts/explore_slang.py` | Eksplorasi awal dataset slang mentah |
-| `scripts/assessing_food.py` | Asesmen kualitas data `food_utama.csv` |
-| `scripts/assessing_slang.py` | Asesmen kualitas data `slang_utama.csv` |
-| `scripts/assessing_synthetic.py` | Asesmen kualitas data sintetis |
-| `scripts/generate_data_dictionary.py` | Generator otomatis data dictionary |
-| `scripts/laporan_kualitas_data.ipynb` | Laporan kualitas data (Jupyter Notebook) |
-| `script-based/generate_data.py` | Generator utama dataset sintetis (rule-based) |
-| `script-based/analisis_dataset.py` | Analisis statistik dataset hasil generasi |
+Dashboard digunakan untuk memvisualisasikan data wawasan bisnis dari dataset.
+
+```bash
+cd dashboard
+pip install -r requirements.txt # (Jika ada) atau instal streamlit pandas plotly
+streamlit run app.py
+# Dashboard berjalan di http://localhost:8501
+
+```
 
 ---
 
-## Konteks Proyek
+## 📚 Dokumentasi API
 
-Dataset ini dibuat untuk melatih model NLP **ChatKasir** yang bertugas memahami pesan chat pembeli warung makan dan mengekstrak tiga entitas utama:
+Tim kami telah menyediakan dokumen **API Contract** yang mengatur alur komunikasi JSON antara Frontend, Backend, dan API Inference.
 
-- **Produk** — nama makanan/minuman yang dipesan
-- **Kuantitas** — jumlah pesanan
-- **Harga** — harga satuan jika disebutkan
-
-Data dirancang agar model tahan terhadap variasi input nyata: penggunaan slang, typo, satuan informal (`sebungkus`, `dua porsi`), dan pesanan majemuk dalam satu pesan.
+* Lihat detailnya di: [`docs/API_CONTRACT.md`](https://www.google.com/search?q=./docs/API_CONTRACT.md) atau [`api-inference/API_CONTRACT.md`](https://www.google.com/search?q=./api-inference/API_CONTRACT.md).
+* Untuk pengujian endpoint dengan mudah, import file **Postman Collection** yang ada di folder [`docs/`](https://www.google.com/search?q=./docs/).
 
 ---
 
-## Author
+## 🤝 Pedoman Kontribusi (Contributing)
 
-**Muhammad Faradi Eka Damara** — DS-1
+Kami menyambut kontribusi dari siapa saja! Jika Anda ingin mengembangkan fitur baru atau memperbaiki bug:
+
+1. Lakukan *Fork* pada repositori ini.
+2. Buat *branch* fitur Anda (`git checkout -b feature/FiturKeren`).
+3. Lakukan *Commit* perubahan Anda (`git commit -m 'Menambahkan fitur keren'`).
+4. *Push* ke *branch* tersebut (`git push origin feature/FiturKeren`).
+5. Buka sebuah *Pull Request* baru.
+
+---
+
+## 👥 Tim Pengembang
+
+Proyek ini dibangun secara kolaboratif sebagai bagian dari program **Coding Camp 2026 by DBS Foundation & Dicoding Indonesia**:
+
+* **Alfan Ramadhan** - Full Stack Web Developer
+* **Muhammad Reihan Ersa Putra** - Full Stack Web Developer
+* **Muhammad Faradi Eka Damara** - Data Science
+* **Salman Pandu Pandiya** - Data Science
+* **Achmad Rif’an** - AI Engineer
+* **Denny Yoan Hendrawan** - AI Engineer
+
+---
+
+**© 2026 ChatKasir Team.** Dilisensikan di bawah MIT License.
